@@ -27,7 +27,7 @@ class music_cog(commands.Cog):
         return {'source': info['formats'][0]['url'], 'title': info['title']}
 
     def play_next(self,ctx):
-        guild = self.guilds[ctx.guild]
+        guild = self.guilds[ctx.guild.id]
         if len(guild.music_queue) > 0:
             guild.is_playing = True
             m_url = guild.music_queue[0][0]['source']
