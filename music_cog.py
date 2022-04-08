@@ -3,17 +3,21 @@ from discord.ext import commands
 from youtube_dl import YoutubeDL
 
 
-class music_cog(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
+class GuildInfo:
+    def __init__(self, channel):
         self.is_playing = False
         self.is_paused = False
         self.music_queue = []
+        self.vc = None
+        self.voice_channel = channel
+
+class music_cog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
         self.YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
         self.FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
                                'options': '-vn'}
-        self.vc = None
-
+        self.guilds={}
     def search_yt(self, item):
         with YoutubeDL(self.YDL_OPTIONS) as ydl:
             try:
@@ -22,48 +26,53 @@ class music_cog(commands.Cog):
                 return False
         return {'source': info['formats'][0]['url'], 'title': info['title']}
 
-    def play_next(self):
-        if len(self.music_queue) > 0:
-            self.is_playing = True
-            m_url = self.music_queue[0][0]['source']
-            self.music_queue.pop(0)
-            self.vc.play(discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next())
+    def play_next(self,ctx):
+        guild = self.guilds[ctx.guild]
+        if len(guild.music_queue) > 0:
+            guild.is_playing = True
+            m_url = guild.music_queue[0][0]['source']
+            guild.music_queue.pop(0)
+            guild.vc.play(discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
         else:
-            self.is_playing = False
+            guild.is_playing = False
 
     async def play_music(self, ctx):
-        if len(self.music_queue) > 0:
-            self.is_playing = True
-            m_url = self.music_queue[0][0]['source']
-            if self.vc == None or not self.vc.is_connected():
-                self.vc = await self.music_queue[0][1].connect()
-                if self.vc == None:
+        guild = self.guilds[ctx.guild]
+        if len(guild.music_queue) > 0:
+            guild.is_playing = True
+            m_url = guild.music_queue[0][0]['source']
+            if guild.vc == None or not guild.vc.is_connected():
+                guild.vc = await guild.music_queue[0][1].connect()
+                if guild.vc == None:
                     await ctx.send("Could not connect to the voice channel")
                     return
             else:
-                await self.vc.move_to(self.music_queue[0][1])
-            self.music_queue.pop(0)
-            self.vc.play(discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next())
+                await guild.vc.move_to(guild.music_queue[0][1])
+            guild.music_queue.pop(0)
+            guild.vc.play(discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
         else:
-            self.is_playing = False
+            guild.is_playing = False
 
     # Play Function
     @commands.command(name="play", aliases=["p", "playing"], help="Play the selected song from youtube")
     async def play(self, ctx, *args):
         query = " ".join(args)
         voice_channel = ctx.author.voice.channel
+        if self.guilds[ctx.guild] == None:
+            self.guilds[ctx.guild] = GuildInfo(ctx.author.voice.channel)
+        guild = self.guilds[ctx.guild]
         if voice_channel is None:
             await ctx.send("Connect to a voice channel!")
-        elif self.is_paused:
-            self.vc.resume()
+        elif guild.is_paused:
+            guild.vc.resume()
         else:
             song = self.search_yt(query)
             if type(song) == type(True):
                 await ctx.send("Could not download the song. Incorrect format, try a different keyword")
             else:
                 await ctx.send("Song added to the queue")
-                self.music_queue.append([song, voice_channel])
-                if self.is_playing == False:
+                guild.music_queue.append([song, voice_channel])
+                if guild.is_playing == False:
                     await self.play_music(ctx)
 
     # Pause Function
