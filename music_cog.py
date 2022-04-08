@@ -37,7 +37,7 @@ class music_cog(commands.Cog):
             guild.is_playing = False
 
     async def play_music(self, ctx):
-        guild = self.guilds[ctx.guild]
+        guild = self.guilds[ctx.guild.id]
         if len(guild.music_queue) > 0:
             guild.is_playing = True
             m_url = guild.music_queue[0][0]['source']
@@ -58,9 +58,9 @@ class music_cog(commands.Cog):
     async def play(self, ctx, *args):
         query = " ".join(args)
         voice_channel = ctx.author.voice.channel
-        if self.guilds[ctx.guild] == None:
-            self.guilds[ctx.guild] = GuildInfo(ctx.author.voice.channel)
-        guild = self.guilds[ctx.guild]
+        if ctx.guild.id not in self.guilds:
+            self.guilds[ctx.guild.id] = GuildInfo(ctx.author.voice.channel)
+        guild = self.guilds[ctx.guild.id]
         if voice_channel is None:
             await ctx.send("Connect to a voice channel!")
         elif guild.is_paused:
