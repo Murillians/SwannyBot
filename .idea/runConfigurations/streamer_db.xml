@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="streamer.db" type="DatabaseScript" editBeforeRun="true" nameIsGenerated="true">
+    <script-file value="$PROJECT_DIR$/streamer.db" />
+    <script-mode>FILE</script-mode>
+    <data-source id="82d8b47f-d95a-4be4-8106-2d405410c16e" />
+    <method v="2" />
+  </configuration>
+</component>
