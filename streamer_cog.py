@@ -1,15 +1,33 @@
-import sqlite3
-import logging
-from os.path import exists
-import shutil
-from discord.ext import commands
 import logging
 import shutil
 import sqlite3
 from os.path import exists
+
+import discord
+import requests
 from discord.ext import commands
 
 import swannybottokens
+
+
+class channelInfo():
+    def __init__(self):
+        self.id = None
+        self.user_name = None
+        self.user_login = None
+        self.started_at = None
+        self.game_name = None
+        self.profile_image_url = None
+        self.offline_image_url = None
+        self.display_name = None
+
+    # for parsing a user
+    def parseUser(self, userData):
+        self.id = userData["data"][0]['id']
+        self.display_name = userData["data"][0]['display_name']
+        self.user_login = userData["data"][0]['login']
+        self.profile_image_url = userData["data"][0]['profile_image_url']
+        self.offline_image_url = userData["data"][0]['offline_image_url']
 
 
 class streamer_cog(commands.Cog):
@@ -26,18 +44,30 @@ class streamer_cog(commands.Cog):
         self.cur = self.db.cursor()
         # run self check once database opens
         self.selfCheck()
-        self.TwitchEndpoint='https://api.twitch.tv/helix/streams?user_login='
-        self.TwitchClientID=swannybottokens.TwitchClientID
-        self.TwitchSecret=swannybottokens.TwitchSecret
+        self.TwitchClientID = swannybottokens.TwitchClientID
+        self.TwitchSecret = swannybottokens.TwitchSecret
 
     def __del__(self):
         self.db.close()
 
     # Add Channel Function
-    @commands.command(name="add_twitch_channel", help="Adds new channel to list of channels this server will be notified of")
-    async def addNewChannel(self,ctx,*args):
-
-    #def removeChannel(self):
+    @commands.command(name="add_twitch_channel",
+                      help="Adds new channel to list of channels this server will be notified of")
+    async def addNewChannel(self, ctx, *args):
+        guild = ctx.guild.id
+        newchannel = args[0]
+        logging.debug("Guild ID: ", guild, " wants to follow ", newchannel)
+        #fix return value
+        channelInfo = self.getTwitchChannel(newchannel)
+        if channelInfo == False:
+            await ctx.send("Not a valid twitch channel! Check your spelling!")
+            return
+        else:
+            embed = discord.Embed(
+                title='Successfully added' + channelInfo.display_name + "to your list of subscribed twitch channels!",
+                url='https://www.twitch.tv/' + channelInfo.user_login
+            ).set_image(channelInfo.profile_image_url).set_thumbnail(channelInfo.profile_image_url)
+            return ctx.send(embed)
 
     def selfCheck(self):
         self.cur.execute(''' SELECT count(*) FROM sqlite_master WHERE type='table' AND name='TEST' ''')
@@ -65,3 +95,24 @@ class streamer_cog(commands.Cog):
         self.db.commit()
         self.db.close()
         logging.debug("was able to successfully initialize database")
+
+    def getTwitchChannel(self, channel):
+        self.TwitchEndpoint = 'https://api.twitch.tv/helix/users?login='
+        oauth = {
+            'client_id': self.TwitchClientID,
+            'client_secret': self.TwitchSecret,
+            "grant_type": 'client_credentials'
+        }
+        p = requests.post('https://id.twitch.tv/oauth2/token', oauth)
+        keys = p.json()
+        headers = {
+            'Client-ID': self.TwitchClientID,
+            'Authorization': 'Bearer ' + keys['access_token']
+        }
+        stream = requests.get(self.TwitchEndpoint + channel, headers=headers, allow_redirects=True, timeout=1)
+        userData = stream.json()
+        if (len(userData["data"]) == 0):
+            return False
+        else:
+            r = channelInfo().parseUser(userData)
+            return r
