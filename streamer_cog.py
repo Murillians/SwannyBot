@@ -46,9 +46,9 @@ class streamer_cog(commands.Cog):
         self.selfCheck()
         self.TwitchClientID = swannybottokens.TwitchClientID
         self.TwitchSecret = swannybottokens.TwitchSecret
-
-    def __del__(self):
-        self.db.close()
+        #test = self.getTwitchChannel('syberserkr')
+        def __del__(self):
+            self.db.close()
 
     # Add Channel Function
     @commands.command(name="add_twitch_channel",
@@ -63,11 +63,11 @@ class streamer_cog(commands.Cog):
             await ctx.send("Not a valid twitch channel! Check your spelling!")
             return
         else:
-            embed = discord.Embed(
-                title='Successfully added' + channelInfo.display_name + "to your list of subscribed twitch channels!",
-                url='https://www.twitch.tv/' + channelInfo.user_login
-            ).set_image(channelInfo.profile_image_url).set_thumbnail(channelInfo.profile_image_url)
-            return ctx.send(embed)
+            richEmbed = discord.Embed(
+                title='Successfully added ' + channelInfo.display_name + " to your list of subscribed twitch channels!",
+                url=('https://www.twitch.tv/' + channelInfo.user_login)
+            ).set_image(url=channelInfo.profile_image_url).set_thumbnail(url=channelInfo.profile_image_url)
+            await ctx.send(embed=richEmbed)
 
     def selfCheck(self):
         self.cur.execute(''' SELECT count(*) FROM sqlite_master WHERE type='table' AND name='TEST' ''')
@@ -97,6 +97,7 @@ class streamer_cog(commands.Cog):
         logging.debug("was able to successfully initialize database")
 
     def getTwitchChannel(self, channel):
+        #set twitch endpoint to get user profile
         self.TwitchEndpoint = 'https://api.twitch.tv/helix/users?login='
         oauth = {
             'client_id': self.TwitchClientID,
@@ -109,10 +110,12 @@ class streamer_cog(commands.Cog):
             'Client-ID': self.TwitchClientID,
             'Authorization': 'Bearer ' + keys['access_token']
         }
+        #TODO break out into generic twitch access function that takes endpoint target (/helix/?????)
         stream = requests.get(self.TwitchEndpoint + channel, headers=headers, allow_redirects=True, timeout=1)
         userData = stream.json()
         if (len(userData["data"]) == 0):
             return False
         else:
-            r = channelInfo().parseUser(userData)
-            return r
+            returnVal= channelInfo()
+            returnVal.parseUser(userData)
+            return returnVal
