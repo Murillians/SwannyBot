@@ -63,7 +63,7 @@ class streamer_cog(commands.Cog):
     @tasks.loop(seconds=60)
     async def checkChannels(self):
         await asyncio.sleep(1)
-        for row in self.cur.execute("Select * from Streamers"):
+        for row in self.cur.execute("Select * from streamers"):
             print("Querying twitch for info on " + row["TwitchUserID"])
             self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
             oauth = {
@@ -164,7 +164,7 @@ class streamer_cog(commands.Cog):
         try:
             reply = await self.bot.wait_for('message', check=check, timeout=10)
             if reply:
-                self.cur.execute('''update guildChannels set ChannelID=? where GuildID=?) VALUES(?,?)''',
+                self.cur.execute('''update guildChannels set ChannelID=? where GuildID=?''',
                                  (currentChannel, guild))
                 self.db.commit()
                 await ctx.send("Successfully made this channel the default for stream notifications!")
