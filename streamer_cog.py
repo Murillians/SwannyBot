@@ -57,14 +57,17 @@ class streamer_cog(commands.Cog):
         #begin checking channels
         #todo: make wait until after everything above goes
         self.checkChannels.start()
-        # test = self.getTwitchChannel('syberserkr')
+
         def __del__(self):
             self.db.close()
+
+
+
     @tasks.loop(seconds=5)
     async def checkChannels(self):
         await asyncio.sleep(1)
         for row in self.cur.execute("Select * from Streamers"):
-            print("Querying twitch for info on "+row["ChannelID"])
+            print("Querying twitch for info on "+row["TwitchUserID"])
             self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
             oauth = {
                 'client_id': self.TwitchClientID,
@@ -78,22 +81,35 @@ class streamer_cog(commands.Cog):
                 'Authorization': 'Bearer ' + keys['access_token']
             }
             # TODO break out into generic twitch access function that takes endpoint target (/helix/?????)
-            stream = requests.get(self.TwitchEndpoint + row["ChannelID"], headers=headers, allow_redirects=True, timeout=1)
-            userData = stream.json()
-            if len(userData["data"])==0:
+            stream = requests.get(self.TwitchEndpoint + row["TwitchUserID"], headers=headers, allow_redirects=True, timeout=1)
+            streamData = stream.json()
+            #stop running the loop if they aren't live
+            if len(streamData["data"])==0:
                 continue
-            fixedTime = userData["data"][0]["started_at"]
+            streamData=streamData["data"][0]
+            fixedTime = streamData["started_at"]
             fixedTime = fixedTime[:-1]
             fixedTime= datetime.fromisoformat(fixedTime)
             #twitch returns a ISO 8601 timestamp w/ 'Z' at the end for timezone, so strip that out cause python freaks
-            lastStarted=datetime.fromisoformat(row["LastStreamTime"])+timedelta(hours=12)
-            if (userData["data"][0]["type"]=="live") and (fixedTime>lastStarted):
-                print(userData)
-                print(userData["data"][0]["user_name"] + " is live! ")
+            lastStarted=datetime.fromisoformat(row["LastStreamTime"])
+            lastStarted=lastStarted+timedelta(hours=12)
+            if (streamData["type"]=="live") and (fixedTime > lastStarted):
+                print(streamData)
+                print(streamData["user_name"] + " is live! ")
                 #todo parse discords to update/send update message
-                self.db.execute('''update streamers set LastStreamTime=? WHERE ChannelID=?''',(fixedTime,row["ChannelID"]))
+                for row in self.cur.execute("select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",(row["TwitchUserID"],)):
+                    destChannel= self.bot.get_channel(int(row["TwitchUserID"]))
+                    richEmbed = discord.Embed(
+                        title=streamData["user_login"] + " is live! Playing "+streamData["game_name"]+"!",
+                        url=('https://www.twitch.tv/' + streamData["user_login"])
+                    ).set_image(url=streamData["thumbnail_url"]).set_thumbnail(
+                        url=streamData["thumbnail_url"])
+                    await destChannel.send(embed=richEmbed)
+                self.db.execute('''update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?''',(streamData["user_id"],))
                 self.db.commit()
-
+    @checkChannels.before_loop
+    async def before_checkChannels(self):
+        await self.bot.wait_until_ready()
 
     # Add Channel Function
     @commands.command(name="add_twitch_channel",
@@ -107,7 +123,7 @@ class streamer_cog(commands.Cog):
             await ctx.send("Not a valid twitch channel! Check your spelling!")
             return
         self.cur.execute("INSERT into Streamers VALUES(?,?)",(twitchChannelInfo.id,datetime.min))
-        self.cur.execute("INSERT into guildStreamers (GuildID,StreamerID) values (?,?) ",(guild,twitchChannelInfo.id))
+        self.cur.execute("INSERT into guildStreamers (GuildID,TwitchUserID) values (?,?) ",(guild,twitchChannelInfo.id))
         self.db.commit()
         richEmbed = discord.Embed(
                 title='Successfully added ' + twitchChannelInfo.display_name + " to your list of subscribed twitch channels!",
@@ -124,7 +140,7 @@ class streamer_cog(commands.Cog):
         #TODO:fix
         self.cur.execute("Select * From guildChannels where GuildID=?", (guild,))
         row = self.cur.fetchone()
-        if len(row) == 0:
+        if row==None or len(row) == 0:
             self.cur.execute('''INSERT INTO guildChannels(GuildID,ChannelID) VALUES(?,?)''',(guild,currentChannel))
             self.db.commit()
             await ctx.send("Successfully made this channel the default for stream notifications!")
@@ -152,7 +168,7 @@ class streamer_cog(commands.Cog):
         #todo: possibly change table datatypes to correlate w/ expected values?
         self.cur.execute('''create table TEST(value text)''')
         self.cur.execute('''create table streamers(ChannelID text, LastStreamTime text )''')
-        self.cur.execute('''create table guildStreamers(GuildID text, StreamerID text)''')
+        self.cur.execute('''create table guildStreamers(GuildID text, TwitchUserID text)''')
         self.cur.execute('''create table guildChannels(GuildID text, ChannelID text)''')
         self.db.commit()
         self.cur.execute('''insert into TEST values ('swannybot')''')
