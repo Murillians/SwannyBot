@@ -63,7 +63,7 @@ class streamer_cog(commands.Cog):
 
 
 
-    @tasks.loop(seconds=5)
+    @tasks.loop(seconds=60)
     async def checkChannels(self):
         await asyncio.sleep(1)
         for row in self.cur.execute("Select * from Streamers"):
