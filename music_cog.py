@@ -57,6 +57,9 @@ class music_cog(commands.Cog):
     @commands.command(name="play", aliases=["p", "playing"], help="Play the selected song from youtube")
     async def play(self, ctx, *args):
         query = " ".join(args)
+        if ctx.author.voice == None:
+            await ctx.send("Connect to a voice channel!")
+            return
         voice_channel = ctx.author.voice.channel
         if ctx.guild.id not in self.guilds:
             self.guilds[ctx.guild.id] = GuildInfo(ctx.author.voice.channel)
@@ -81,11 +84,11 @@ class music_cog(commands.Cog):
         if self.is_playing:
             self.is_playing = False
             self.is_paused = True
-            self.vc.pause()
+            ctx.voice_client.pause()
         elif self.is_paused:
             self.is_playing = True
             self.is_paused = False
-            self.vc.resume()
+            ctx.voice_client.resume()
 
     # Resume Function
     @commands.command(name="resume", aliases=["r"], help="Resumes playing the current song")
@@ -93,13 +96,13 @@ class music_cog(commands.Cog):
         if self.is_paused:
             self.is_playing = True
             self.is_paused = False
-            self.vc.resume()
+            ctx.voice_client.resume()
 
     # Skip Function
     @commands.command(name="skip", aliases=["s"], help="Skips the song currently playing")
     async def skip(self, ctx, *args):
-        if self.vc is not None and self.vc:
-            self.vc.stop()
+        if self.voice_channel is not None and self.vc:
+            self.voice_channel.stop()
             await self.play_music(ctx)
 
     # Queue Function
@@ -118,7 +121,7 @@ class music_cog(commands.Cog):
     # Clear Queue Function
     @commands.command(name="clear", aliases=["c", "bin"], help="Stops the current song and clears the queue")
     async def clear(self, ctx, *args):
-        if self.vc is not None and self.is_playing:
+        if self.voice_channel is not None and self.is_playing:
             self.vc.stop()
         self.music_queue = []
         await ctx.send("Music queue cleared")
@@ -128,4 +131,4 @@ class music_cog(commands.Cog):
     async def leave(self, ctx):
         self.is_playing = False
         self.is_paused = False
-        await self.vc.disconnect()
+        await ctx.voice_client.disconnect()
