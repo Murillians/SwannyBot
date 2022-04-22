@@ -49,6 +49,7 @@ class streamer_cog(commands.Cog):
         logging.info("was able to open database file, checking for integrity")
         self.cur = self.db.cursor()
         # run self check once database opens
+        #todo: delete channels that have no associated guilds
         self.selfCheck()
         self.TwitchClientID = swannybottokens.TwitchClientID
         self.TwitchSecret = swannybottokens.TwitchSecret
@@ -177,6 +178,21 @@ class streamer_cog(commands.Cog):
                 return
         except asyncio.TimeoutError:
             return await ctx.channel.send("Sorry, you took too long")
+
+    #Delete Channel Function
+    @commands.command(name="delete_twitch_channel", help="Remove a Twitch channel from this servers notifications")
+    async def deleteTwitchChannel(self,ctx,*args):
+        guild = ctx.guild.id
+        newchannel = args[0]
+        logging.debug("Guild ID: ", guild, " wants to remove ", newchannel)
+        twitchChannelInfo = self.getTwitchChannel(newchannel)
+        if twitchChannelInfo == False:
+            await ctx.send("Not a valid twitch channel! Check your spelling!")
+            return
+        self.cur.execute("delete from guildStreamers where GuildID=(?) and TwitchUserID=(?)",
+                         (guild, twitchChannelInfo.id))
+        self.db.commit()
+        await ctx.send('Successfully removed ' + twitchChannelInfo.display_name + " from your list of subscribed twitch channels!")
 
     def selfCheck(self):
         self.cur.execute(''' SELECT count(*) FROM sqlite_master WHERE type='table' AND name='TEST' ''')
