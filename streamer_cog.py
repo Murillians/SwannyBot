@@ -98,7 +98,7 @@ class streamer_cog(commands.Cog):
                 for row in self.cur.execute(
                         "select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",
                         (row["TwitchUserID"],)):
-                    destChannel = self.bot.get_channel(int(row["TwitchUserID"]))
+                    destChannel = self.bot.get_channel(int(row["ChannelID"]))
                     richEmbed = discord.Embed(
                         title=streamData["user_login"] + " is live! Playing " + streamData["game_name"] + "!",
                         url=('https://www.twitch.tv/' + streamData["user_login"])
@@ -213,7 +213,7 @@ class streamer_cog(commands.Cog):
     def initialDBSetup(self):
         # todo: possibly change table datatypes to correlate w/ expected values?
         self.cur.execute('''create table TEST(value text)''')
-        self.cur.execute('''create table streamers(ChannelID text, LastStreamTime text )''')
+        self.cur.execute('''create table streamers(TwitchUserID text, LastStreamTime text )''')
         self.cur.execute('''create table guildStreamers(GuildID text, TwitchUserID text)''')
         self.cur.execute('''create table guildChannels(GuildID text, ChannelID text)''')
         self.db.commit()
