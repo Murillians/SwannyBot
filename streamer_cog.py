@@ -4,8 +4,6 @@ import shutil
 import sqlite3
 from datetime import datetime
 from datetime import timedelta
-import dateutil.parser
-import dateutil.tz
 from os.path import exists
 import discord
 import requests
@@ -40,7 +38,7 @@ class streamer_cog(commands.Cog):
     cur = None
 
     def __init__(self, bot):
-        self.bot=bot
+        self.bot = bot
 
         # make db backup if exists, for testing
         if exists('streamer.db'):
@@ -54,20 +52,18 @@ class streamer_cog(commands.Cog):
         self.selfCheck()
         self.TwitchClientID = swannybottokens.TwitchClientID
         self.TwitchSecret = swannybottokens.TwitchSecret
-        #begin checking channels
-        #todo: make wait until after everything above goes
+        # begin checking channels
+        # todo: make wait until after everything above goes
         self.checkChannels.start()
 
         def __del__(self):
             self.db.close()
 
-
-
     @tasks.loop(seconds=60)
     async def checkChannels(self):
         await asyncio.sleep(1)
         for row in self.cur.execute("Select * from Streamers"):
-            print("Querying twitch for info on "+row["TwitchUserID"])
+            print("Querying twitch for info on " + row["TwitchUserID"])
             self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
             oauth = {
                 'client_id': self.TwitchClientID,
@@ -81,32 +77,37 @@ class streamer_cog(commands.Cog):
                 'Authorization': 'Bearer ' + keys['access_token']
             }
             # TODO break out into generic twitch access function that takes endpoint target (/helix/?????)
-            stream = requests.get(self.TwitchEndpoint + row["TwitchUserID"], headers=headers, allow_redirects=True, timeout=1)
+            stream = requests.get(self.TwitchEndpoint + row["TwitchUserID"], headers=headers, allow_redirects=True,
+                                  timeout=1)
             streamData = stream.json()
-            #stop running the loop if they aren't live
-            if len(streamData["data"])==0:
+            # stop running the loop if they aren't live
+            if len(streamData["data"]) == 0:
                 continue
-            streamData=streamData["data"][0]
+            streamData = streamData["data"][0]
             fixedTime = streamData["started_at"]
             fixedTime = fixedTime[:-1]
-            fixedTime= datetime.fromisoformat(fixedTime)
-            #twitch returns a ISO 8601 timestamp w/ 'Z' at the end for timezone, so strip that out cause python freaks
-            lastStarted=datetime.fromisoformat(row["LastStreamTime"])
-            lastStarted=lastStarted+timedelta(hours=12)
-            if (streamData["type"]=="live") and (fixedTime > lastStarted):
+            fixedTime = datetime.fromisoformat(fixedTime)
+            # twitch returns a ISO 8601 timestamp w/ 'Z' at the end for timezone, so strip that out cause python freaks
+            lastStarted = datetime.fromisoformat(row["LastStreamTime"])
+            lastStarted = lastStarted + timedelta(hours=12)
+            if (streamData["type"] == "live") and (fixedTime > lastStarted):
                 print(streamData)
                 print(streamData["user_name"] + " is live! ")
-                #todo parse discords to update/send update message
-                for row in self.cur.execute("select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",(row["TwitchUserID"],)):
-                    destChannel= self.bot.get_channel(int(row["TwitchUserID"]))
+                # todo parse discords to update/send update message
+                for row in self.cur.execute(
+                        "select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",
+                        (row["TwitchUserID"],)):
+                    destChannel = self.bot.get_channel(int(row["TwitchUserID"]))
                     richEmbed = discord.Embed(
-                        title=streamData["user_login"] + " is live! Playing "+streamData["game_name"]+"!",
+                        title=streamData["user_login"] + " is live! Playing " + streamData["game_name"] + "!",
                         url=('https://www.twitch.tv/' + streamData["user_login"])
                     ).set_image(url=streamData["thumbnail_url"]).set_thumbnail(
                         url=streamData["thumbnail_url"])
                     await destChannel.send(embed=richEmbed)
-                self.db.execute('''update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?''',(streamData["user_id"],))
+                self.db.execute('''update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?''',
+                                (streamData["user_id"],))
                 self.db.commit()
+
     @checkChannels.before_loop
     async def before_checkChannels(self):
         await self.bot.wait_until_ready()
@@ -122,13 +123,14 @@ class streamer_cog(commands.Cog):
         if twitchChannelInfo == False:
             await ctx.send("Not a valid twitch channel! Check your spelling!")
             return
-        self.cur.execute("INSERT into Streamers VALUES(?,?)",(twitchChannelInfo.id,datetime.min))
-        self.cur.execute("INSERT into guildStreamers (GuildID,TwitchUserID) values (?,?) ",(guild,twitchChannelInfo.id))
+        self.cur.execute("INSERT into Streamers VALUES(?,?)", (twitchChannelInfo.id, datetime.min))
+        self.cur.execute("INSERT into guildStreamers (GuildID,TwitchUserID) values (?,?) ",
+                         (guild, twitchChannelInfo.id))
         self.db.commit()
         richEmbed = discord.Embed(
-                title='Successfully added ' + twitchChannelInfo.display_name + " to your list of subscribed twitch channels!",
-                url=('https://www.twitch.tv/' + twitchChannelInfo.user_login)
-            ).set_image(url=twitchChannelInfo.profile_image_url).set_thumbnail(url=twitchChannelInfo.profile_image_url)
+            title='Successfully added ' + twitchChannelInfo.display_name + " to your list of subscribed twitch channels!",
+            url=('https://www.twitch.tv/' + twitchChannelInfo.user_login)
+        ).set_image(url=twitchChannelInfo.profile_image_url).set_thumbnail(url=twitchChannelInfo.profile_image_url)
         await ctx.send(embed=richEmbed)
 
     # Add Channel Function
@@ -137,17 +139,45 @@ class streamer_cog(commands.Cog):
     async def setStreamNotifications(self, ctx):
         guild = ctx.guild.id
         currentChannel = ctx.channel.id
-        #TODO:fix
+        # TODO:fix
         self.cur.execute("Select * From guildChannels where GuildID=?", (guild,))
         row = self.cur.fetchone()
-        if row==None or len(row) == 0:
-            self.cur.execute('''INSERT INTO guildChannels(GuildID,ChannelID) VALUES(?,?)''',(guild,currentChannel))
+        if row == None or len(row) == 0:
+            self.cur.execute('''INSERT INTO guildChannels(GuildID,ChannelID) VALUES(?,?)''', (guild, currentChannel))
             self.db.commit()
             await ctx.send("Successfully made this channel the default for stream notifications!")
             return
-        #changed self.bot to discord.Client
-        await ctx.send("Warning, this server currently receives notifications in " +discord.Client.get_channel(int(row["ChannelID"])).mention)
-        print("test")
+
+        # handling if server already has default notif channel
+        def check(m):
+            if m.content in {'y', 'Y', 'yes', 'Yes'}:
+                return True
+            elif m.content in {'n', 'N', 'no', 'No'}:
+                return False
+            else:
+                return
+
+        await ctx.send("Warning, this server currently receives notifications in " + ctx.guild.get_channel(
+            int(row["ChannelID"])).mention +
+                       "\n Would you like to make this channel the default for streaming notifications? (Y/N)")
+        try:
+            reply = await self.bot.wait_for('message', check=check, timeout=10)
+            if reply:
+                self.cur.execute('''update guildChannels set ChannelID=? where GuildID=?) VALUES(?,?)''',
+                                 (currentChannel, guild))
+                self.db.commit()
+                await ctx.send("Successfully made this channel the default for stream notifications!")
+                return
+            elif not reply:
+                await ctx.send(
+                    "OK, you\'ll keep getting notifications in " + ctx.guild.get_channel(int(row["ChannelID"])).mention)
+                return
+            else:
+                await ctx.send("Incorrect response (its yes or no dog c\'mon")
+                return
+        except asyncio.TimeoutError:
+            return await ctx.channel.send("Sorry, you took too long")
+
     def selfCheck(self):
         self.cur.execute(''' SELECT count(*) FROM sqlite_master WHERE type='table' AND name='TEST' ''')
         row = self.cur.fetchone()
@@ -165,7 +195,7 @@ class streamer_cog(commands.Cog):
             self.initialDBSetup()
 
     def initialDBSetup(self):
-        #todo: possibly change table datatypes to correlate w/ expected values?
+        # todo: possibly change table datatypes to correlate w/ expected values?
         self.cur.execute('''create table TEST(value text)''')
         self.cur.execute('''create table streamers(ChannelID text, LastStreamTime text )''')
         self.cur.execute('''create table guildStreamers(GuildID text, TwitchUserID text)''')
