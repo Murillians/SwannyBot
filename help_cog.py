@@ -43,7 +43,7 @@ The bot checks for streams every 60 seconds
     @commands.command(name="help", help="Displays all the available commands")
     async def help(self, ctx):
         await ctx.send(self.help_message)
-    @commands.command(name="streaming_help", help="Displays streaming commands")
+    @commands.command(name="stream_help", help="Displays streaming commands")
     async def streamHelp(self,ctx):
         await ctx.send(self.stream_message)
 
