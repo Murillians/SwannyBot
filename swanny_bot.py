@@ -4,6 +4,7 @@ import swannybottokens
 from help_cog import help_cog
 from music_cog import music_cog
 from streamer_cog import streamer_cog
+from special_cog import special_cog
 bot = commands.Bot(command_prefix="!")
 bot.remove_command("help")
 bot.add_cog(help_cog(bot))
