@@ -15,8 +15,16 @@ General commands:
 !clear, !c, !bin - Stops the music and clears the queue.
 !leave, !disconnect, !l, !d - Disconnects Swanny Bot from the voice channel.
 !pause - Pauses the current song being played or resumes if already paused.
-!resume - Resumes playing the current song.      
+!resume - Resumes playing the current song.
+!stream_help - show streaming help commands
 ```     
+"""
+        self.stream_message = """
+Streaming Commands:
+!set_stream_notifications - set the current channel to receive streaming notifications from the bot
+!add_twitch_channel - Add a new streamer to the list of streamers to be notified about
+!delete_twitch_channel - Stop receiving notifications from a Twitch channel
+The bot checks for streams every 60 seconds
 """
         self.text_channel_text = []
 
@@ -35,3 +43,8 @@ General commands:
     @commands.command(name="help", help="Displays all the available commands")
     async def help(self, ctx):
         await ctx.send(self.help_message)
+    @commands.command(name="stream_help", help="Displays streaming commands")
+    async def streamHelp(self,ctx):
+        await ctx.send(self.stream_message)
+
+
