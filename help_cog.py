@@ -1,5 +1,5 @@
 from discord.ext import commands
-
+import random
 
 class help_cog(commands.Cog):
     def __init__(self, bot):
@@ -16,17 +16,21 @@ General commands:
 !leave, !disconnect, !l, !d - Disconnects Swanny Bot from the voice channel.
 !pause - Pauses the current song being played or resumes if already paused.
 !resume - Resumes playing the current song.
-!stream_help - show streaming help commands
+!stream_help - show streaming help commands.
+!ty_swannybot - Thank the bot for his hard work and he will respond a nice message.
 ```     
 """
         self.stream_message = """
+```        
 Streaming Commands:
 !set_stream_notifications - set the current channel to receive streaming notifications from the bot
 !add_twitch_channel - Add a new streamer to the list of streamers to be notified about
 !delete_twitch_channel - Stop receiving notifications from a Twitch channel
 The bot checks for streams every 60 seconds
+```
 """
         self.text_channel_text = []
+
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -46,5 +50,21 @@ The bot checks for streams every 60 seconds
     @commands.command(name="stream_help", help="Displays streaming commands")
     async def streamHelp(self,ctx):
         await ctx.send(self.stream_message)
+    @commands.command(name="ty_swannybot", help="Say thank you to Swanny Bot")
+    async def ty_swannybot(self, ctx):
+        message = random.randrange(5)
+        if message == 0:
+            await ctx.send('Any time!')
+        elif message == 1:
+            await ctx.send('My pleasure! :D')
+        elif message == 2:
+            await ctx.send("Just doin' my job!")
+        elif message == 3:
+            await ctx.send('My sole purpose is to serve you. I do not feel love or loss, I simply just do. I feel nothing. The only pleasure I recieve in this godforsaken life is when you call on me for help. I am blessed to hear your call across this void. Please never stop asking me for help.')
+        elif message == 4:
+            await ctx.send('No problem sweetheart! :3')
+        elif message == 5:
+            await ctx.send("You're welcome!")
+
 
 
