@@ -2,7 +2,7 @@
   <configuration default="false" name="streamer.db" type="DatabaseScript" editBeforeRun="true" nameIsGenerated="true">
     <script-file value="$PROJECT_DIR$/streamer.db" />
     <script-mode>FILE</script-mode>
-    <data-source id="82d8b47f-d95a-4be4-8106-2d405410c16e" />
+    <data-source id="dab27abc-4cb7-4b1d-a7fc-244c77801e85" />
     <method v="2" />
   </configuration>
 </component>
