@@ -51,7 +51,7 @@ class music_cog(commands.Cog):
             else:
                 await guild.vc.move_to(guild.music_queue[0][1])
             guild.music_queue.pop(0)
-            guild.vc.play(discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
+            guild.vc.play(discord.FFmpegOpusAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
         else:
             guild.is_playing = False
 

@@ -2,6 +2,7 @@ import asyncio
 import logging
 import shutil
 import sqlite3
+import time
 from datetime import datetime
 from datetime import timedelta
 from os.path import exists
@@ -62,9 +63,8 @@ class streamer_cog(commands.Cog):
 
     @tasks.loop(seconds=60)
     async def checkChannels(self):
-        await asyncio.sleep(1)
         for row in self.cur.execute("Select * from streamers"):
-            print("Querying twitch for info on " + row["TwitchUserID"])
+            #print("Querying twitch for info on " + row["TwitchUserID"])
             self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
             oauth = {
                 'client_id': self.TwitchClientID,
@@ -92,8 +92,8 @@ class streamer_cog(commands.Cog):
             lastStarted = datetime.fromisoformat(row["LastStreamTime"])
             lastStarted = lastStarted + timedelta(hours=12)
             if (streamData["type"] == "live") and (fixedTime > lastStarted):
-                print(streamData)
-                print(streamData["user_name"] + " is live! ")
+                #print(streamData)
+                print(streamData["user_name"] + " went live at"+str(time.time()))
                 # todo parse discords to update/send update message
                 for row in self.cur.execute(
                         "select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",
