@@ -1,7 +1,8 @@
 import discord
+import swannybottokens
 from discord.ext import commands
 from youtube_dl import YoutubeDL
-
+import wavelink
 
 class GuildInfo:
     def __init__(self, channel):
@@ -11,30 +12,32 @@ class GuildInfo:
         self.vc = None
         self.voice_channel = channel
 
-
 class music_cog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
-        self.YDL_OPTIONS = {'format': 'bestaudio', 'noplaylist': 'True'}
-        self.FFMPEG_OPTIONS = {'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-                               'options': '-vn'}
         self.guilds = {}
+        bot.loop.create_task(self.connect_nodes())
 
-    def search_yt(self, item):
-        with YoutubeDL(self.YDL_OPTIONS) as ydl:
-            try:
-                info = ydl.extract_info("ytsearch:%s" % item, download=False)['entries'][0]
-            except Exception:
-                return False
-        return {'source': info['formats'][0]['url'], 'title': info['title']}
+    @commands.Cog.listener()
+    async def on_wavelink_node_ready (self,node: wavelink.Node):
+        #Event fired when a node has finished connecting
+        print(f'Node <{node.identifier} is ready')
 
-    def play_next(self, ctx):
+    async def connect_nodes(self):
+        #to connect to wavelink nodes
+        await self.bot.wait_until_ready()
+        await wavelink.NodePool.create_node(bot=self.bot,
+                                            host='127.0.0.1',
+                                            port=2333,
+                                            password=swannybottokens.WavelinkPassword)
+
+    async def play_next(self, ctx):
         guild = self.guilds[ctx.guild.id]
         if len(guild.music_queue) > 0:
             guild.is_playing = True
-            m_url = guild.music_queue[0][0]['source']
+            search = guild.music_queue[0][0]
             guild.music_queue.pop(0)
-            guild.vc.play(discord.FFmpegPCMAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
+            await guild.voice_client.play(search)
         else:
             guild.is_playing = False
 
@@ -42,23 +45,21 @@ class music_cog(commands.Cog):
         guild = self.guilds[ctx.guild.id]
         if len(guild.music_queue) > 0:
             guild.is_playing = True
-            m_url = guild.music_queue[0][0]['source']
-            if guild.vc == None or not guild.vc.is_connected():
+            search = guild.music_queue[0][0]
+            if not ctx.voice_client:
                 guild.vc = await guild.music_queue[0][1].connect()
                 if guild.vc == None:
                     await ctx.send("Could not connect to the voice channel")
                     return
-            else:
-                await guild.vc.move_to(guild.music_queue[0][1])
             guild.music_queue.pop(0)
-            guild.vc.play(discord.FFmpegOpusAudio(m_url, **self.FFMPEG_OPTIONS), after=lambda e: self.play_next(ctx))
+            player=guild.voice_client
+            #await player.play(search),after=lambda e: self.play_next(ctx)
         else:
             guild.is_playing = False
 
     # Play Function
     @commands.command(name="play", aliases=["p", "playing"], help="Play the selected song from youtube")
-    async def play(self, ctx, *args):
-        query = " ".join(args)
+    async def play(self, ctx: commands.Context, *,search: wavelink.YouTubeTrack):
         if ctx.author.voice == None:
             await ctx.send("Connect to a voice channel!")
             return
@@ -71,14 +72,14 @@ class music_cog(commands.Cog):
         elif guild.is_paused:
             guild.vc.resume()
         else:
-            song = self.search_yt(query)
-            if type(song) == type(True):
-                await ctx.send("Could not download the song. Incorrect format, try a different keyword")
+            await ctx.send("Song added to the queue")
+            guild.music_queue.append([search, voice_channel])
+            if not ctx.voice_client:
+                guild.voice_client = wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
             else:
-                await ctx.send("Song added to the queue")
-                guild.music_queue.append([song, voice_channel])
-                if guild.is_playing == False:
-                    await self.play_music(ctx)
+                vc: wavelink.Player = guild.voice_client
+            if not guild.is_playing:
+               await self.play_music(ctx)
 
     # Pause Function
     @commands.command(name="pause", help="Pauses the current song being played")
