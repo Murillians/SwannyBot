@@ -22,10 +22,11 @@ def startup_check():
     #currently not working, fix downloading function
     # ensure we have lavalink jar
     if os.path.exists("/wavelink/lavalink.jar"):
+        logging.info("Found wavelink.jar file, continuing")
         return
     else:
         lavalink_url = "https://github.com/freyacodes/Lavalink/releases/latest/assets/download/Lavalink.jar"
-        response = requests.get(lavalink_url)
+        response = requests.get(lavalink_url, allow_redirects=True)
         open("wavelink/lavalink.jar", "wb").write(response.content)
         os.system("java -jar wavelink/lavalink.jar")
         if os.path.exists("/wavelink/lavalink.jar"):

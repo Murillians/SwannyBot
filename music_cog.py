@@ -1,16 +1,25 @@
 import discord
+
 import swannybottokens
 from discord.ext import commands
-from youtube_dl import YoutubeDL
 import wavelink
+from wavelink.ext import spotify
+import typing
+from enum import Enum
+
+
+class Status(Enum):
+    playing = 1
+    paused = 2
+    stopped = 3
+
 
 class GuildInfo:
     def __init__(self, channel):
-        self.is_playing = False
-        self.is_paused = False
-        self.music_queue = []
-        self.vc = None
+        self.voice_client = None
         self.voice_channel = channel
+        self.status = Status
+
 
 class music_cog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -19,27 +28,27 @@ class music_cog(commands.Cog):
         bot.loop.create_task(self.connect_nodes())
 
     @commands.Cog.listener()
-    async def on_wavelink_node_ready (self,node: wavelink.Node):
-        #Event fired when a node has finished connecting
+    async def on_wavelink_node_ready(self, node: wavelink.Node):
+        # Event fired when a node has finished connecting
         print(f'Node <{node.identifier} is ready')
 
     async def connect_nodes(self):
-        #to connect to wavelink nodes
+        # to connect to wavelink nodes
         await self.bot.wait_until_ready()
         await wavelink.NodePool.create_node(bot=self.bot,
                                             host='127.0.0.1',
                                             port=2333,
-                                            password=swannybottokens.WavelinkPassword)
+                                            password=swannybottokens.WavelinkPassword,
+                                            spotify_client=spotify.SpotifyClient(client_id=swannybottokens.SpotifyID,
+                                                                                 client_secret=swannybottokens.SpotifySecret))
 
     async def play_next(self, ctx):
         guild = self.guilds[ctx.guild.id]
-        if len(guild.music_queue) > 0:
-            guild.is_playing = True
-            search = guild.music_queue[0][0]
-            guild.music_queue.pop(0)
-            await guild.voice_client.play(search)
+        if guild.voice_client and guild.voice_client.queue.count > 0:
+            guild.status = Status.playing
+            await guild.voice_client.play(guild.voice_client.queue.pop())
         else:
-            guild.is_playing = False
+            guild.status = Status.paused
 
     async def play_music(self, ctx):
         guild = self.guilds[ctx.guild.id]
@@ -52,14 +61,15 @@ class music_cog(commands.Cog):
                     await ctx.send("Could not connect to the voice channel")
                     return
             guild.music_queue.pop(0)
-            player=guild.voice_client
-            #await player.play(search),after=lambda e: self.play_next(ctx)
+            player = guild.voice_client
         else:
             guild.is_playing = False
 
     # Play Function
+    #TODO:visual feedback of song after adding
     @commands.command(name="play", aliases=["p", "playing"], help="Play the selected song from youtube")
-    async def play(self, ctx: commands.Context, *,search: wavelink.YouTubeTrack):
+    async def play(self, ctx: commands.Context, *,
+                   track: typing.Union[wavelink.YouTubeTrack, wavelink.SoundCloudTrack]):
         if ctx.author.voice == None:
             await ctx.send("Connect to a voice channel!")
             return
@@ -69,47 +79,60 @@ class music_cog(commands.Cog):
         guild = self.guilds[ctx.guild.id]
         if voice_channel is None:
             await ctx.send("Connect to a voice channel!")
-        elif guild.is_paused:
-            guild.vc.resume()
+        if ctx.voice_client:
+            if guild.voice_client.queue.count > 0 or guild.voice_client.is_playing():
+                guild.voice_client.queue.put(track)
+                songEmbed = discord.Embed(
+                    title=track.title + " added to queue",
+                    url=track.uri
+                ).set_image(url=track.thumb).set_thumbnail(url=track.thumbnail)
+                await ctx.send(embed=songEmbed)
+            if guild.voice_client.queue.count == 0:
+                guild.voice_client.queue.put(track)
+                songEmbed = discord.Embed(
+                    title=track.title + " added to queue",
+                    url=track.uri
+                ).set_image(url=track.thumb).set_thumbnail(url=track.thumbnail)
+                await ctx.send(embed=songEmbed)
+                await guild.voice_client.play(guild.voice_client.queue.pop())
+                guild.status = Status.playing
         else:
-            await ctx.send("Song added to the queue")
-            guild.music_queue.append([search, voice_channel])
-            if not ctx.voice_client:
-                guild.voice_client = wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
-            else:
-                vc: wavelink.Player = guild.voice_client
-            if not guild.is_playing:
-               await self.play_music(ctx)
+            guild.voice_client = wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+            guild.voice_client.queue.put(track)
+            songEmbed = discord.Embed(
+                title=track.title + " added to queue",
+                url=track.uri
+            ).set_image(url=track.thumb).set_thumbnail(url=track.thumbnail)
+            await ctx.send(embed=songEmbed)
+            await guild.voice_client.play(guild.voice_client.queue.pop())
+            guild.status = Status.playing
 
     # Pause Function
     @commands.command(name="pause", help="Pauses the current song being played")
     async def pause(self, ctx, *args):
         currentguild = self.guilds[ctx.guild.id]
-        if currentguild.is_playing:
-            currentguild.is_playing = False
-            currentguild.is_paused = True
-            ctx.voice_client.pause()
-        elif self.is_paused:
-            currentguild.is_playing = True
-            currentguild.is_paused = False
-            ctx.voice_client.resume()
+        if not currentguild.voice_client.is_paused():
+            currentguild.status = Status.paused
+            await currentguild.voice_client.pause()
+        else:
+            currentguild.status = Status.playing
+            await currentguild.voice_client.resume()
 
     # Resume Function
     @commands.command(name="resume", aliases=["r"], help="Resumes playing the current song")
     async def resume(self, ctx, *args):
         currentguild = self.guilds[ctx.guild.id]
-        if currentguild.is_paused:
-            currentguild.is_playing = True
-            currentguild.is_paused = False
-            ctx.voice_client.resume()
+        if currentguild.voice_client.is_paused():
+            currentguild.status = Status.playing
+            currentguild.voice_client.resume()
 
     # Skip Function
     @commands.command(name="skip", aliases=["s"], help="Skips the song currently playing")
     async def skip(self, ctx, *args):
         currentguild = self.guilds[ctx.guild.id]
-        if currentguild.vc is not None and currentguild.is_playing:
-            currentguild.vc.stop()
-            await self.play_music(ctx)
+        if currentguild.voice_client is not None and currentguild.status==Status.playing:
+            await currentguild.voice_client.stop()
+            await self.play_next(ctx)
 
     # Queue Function
     @commands.command(name="queue", aliases=["q"], help="Displays all the songs currently in queue")
@@ -129,9 +152,9 @@ class music_cog(commands.Cog):
     @commands.command(name="clear", aliases=["c", "bin"], help="Stops the current song and clears the queue")
     async def clear(self, ctx, *args):
         currentguild = self.guilds[ctx.guild.id]
-        if currentguild.vc is not None and currentguild.is_playing:
-            currentguild.vc.stop()
-        currentguild.music_queue = []
+        if currentguild.voice_client is not None and currentguild.is_playing:
+            currentguild.voice_channel.stop()
+            currentguild.voice_channel.queue.clear()
         await ctx.send("Music queue cleared")
 
     # Leave Function
@@ -141,3 +164,11 @@ class music_cog(commands.Cog):
         currentguild.is_playing = False
         currentguild.is_paused = False
         await ctx.voice_client.disconnect()
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self, player: wavelink.Player, track: wavelink.Track, reason):
+        if player.queue.count > 0:
+            await player.play(player.queue.pop())
+        else:
+            guild = self.guilds[player.guild.id]
+            guild.status = Status.playing
