@@ -151,7 +151,7 @@ class music_cog(commands.Cog):
         else:
             guild = self.guilds[player.guild.id]
             guild.status = Status.stopped
-            await asyncio.sleep(90)
+            await asyncio.sleep(600)
             if player.is_playing() is not True:
                 await self.timeout(guild)
 
