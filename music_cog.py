@@ -22,7 +22,6 @@ class GuildInfo:
         self.voice_client = None
         self.voice_channel = channel
         self.status = Status
-        self.disconnect_timer = threading.Timer
 
 
 
@@ -30,7 +29,6 @@ class music_cog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.guilds = {}
-        self.disconnect_timer = threading.Timer
         bot.loop.create_task(self.connect_nodes())
 
     @commands.Cog.listener()
