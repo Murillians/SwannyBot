@@ -6,7 +6,7 @@ import wavelink
 import typing
 from discord.ext import commands,tasks
 from wavelink.ext import spotify
-
+import logging
 from enum import Enum
 
 
@@ -133,8 +133,8 @@ class music_cog(commands.Cog):
     async def clear(self, ctx, *args):
         currentguild = self.guilds[ctx.guild.id]
         if currentguild.voice_client is not None and currentguild.status == Status.playing:
-            currentguild.voice_channel.stop()
-            currentguild.voice_channel.queue.clear()
+            await currentguild.voice_client.stop()
+            currentguild.voice_client.queue.clear()
         await ctx.send("Music queue cleared")
 
     # Leave Function
@@ -142,8 +142,8 @@ class music_cog(commands.Cog):
     async def leave(self, ctx):
         currentguild = self.guilds[ctx.guild.id]
         currentguild.status=Status.disconnected
+        currentguild.voice_client.queue.clear()
         await ctx.voice_client.disconnect()
-
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, player: wavelink.Player, track: wavelink.Track, reason):
         if player.queue.count > 0:
@@ -154,6 +154,18 @@ class music_cog(commands.Cog):
             await asyncio.sleep(600)
             if player.is_playing() is not True:
                 await self.timeout(guild)
+    @commands.Cog.listener()
+    async def on_wavelink_websocket_closed(player: wavelink.Player, reason, code):
+        logging.info("wavelink websocket closed, Reason: "+reason+" Code: "+code)
+    @commands.Cog.listener()
+    async def on_wavelink_track_exception(player: wavelink.Player, track: wavelink.Track, error):
+        logging.info("wavelink track error, Error: "+error+" track: "+track)
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_stuck(player: wavelink.Player, track: wavelink.Track, threshold):
+        logging.info("wavelink track stuck, Threshold: "+threshold+" track: "+track)
+
+
 
     async def timeout(self,guild):
         currentguild = guild
