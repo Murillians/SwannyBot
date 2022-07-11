@@ -1,0 +1,2 @@
+ensure there is a proper application.yml and lavalink.jar file in this directory
+also ensure there is a Java 13+ version installed on the running machine
