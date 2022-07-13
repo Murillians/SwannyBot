@@ -47,7 +47,7 @@ class music_cog(commands.Cog):
                                                                                  client_secret=swannybottokens.SpotifySecret))
     #connect function, mostly helper
     @commands.command()
-    async def connect(self,ctx:commands.Context, *, channel: discord.VoiceChannel = None):
+    async def connect(self,ctx : commands.Context, *, channel: discord.VoiceChannel = None):
         try:
             channel=channel or ctx.author.voice.channel
         except AttributeError:
@@ -63,11 +63,12 @@ class music_cog(commands.Cog):
         if ctx.guild.id not in self.guilds:
             self.guilds[ctx.guild.id] = GuildInfo(ctx.author.voice.channel)
         guild = self.guilds[ctx.guild.id]
-        try:
-            guild.voice_client = await self.connect(ctx)
-        except Exception:
-            #could not connect to the voice channel for some reason, stop trying to connect
-            return
+        if guild.voice_client is None:
+            try:
+                guild.voice_client = await self.connect(ctx)
+            except Exception:
+                #could not connect to the voice channel for some reason, stop trying to connect
+                return
         if guild.voice_client.is_playing() or guild.voice_client.queue.count > 0:
                 guild.voice_client.queue.put(track)
                 songEmbed = discord.Embed(
