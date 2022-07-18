@@ -5,15 +5,19 @@ from discord import File
 import os.path
 class video_cog(commands.Cog):
     ydl_opts = {
-        'format':'best[vcodec=h264]',
+        'format':'best[vcodec!=h265][ext=mp4]',
         'outtmpl':'%(id)s.mp4'
     }
     @commands.command(name="download", aliases=["dl"])
     async def download(self, ctx: commands.Context,arg1):
         ydl = yt_dlp.YoutubeDL(self.ydl_opts)
-        link = arg1
+        link = str(arg1)
         info = ydl.extract_info(link)
-        error_code = ydl.download(link)
+        try:
+            error_code = ydl.download(link)
+        except BaseException:
+            await ctx.channel.send("Was unable to download this file, double check your link and try again")
+            return
         filename=info["id"]
         filesize=os.path.getsize("%s.mp4" % filename)
         video_file = open("%s.mp4" % filename, 'rb')
