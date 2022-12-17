@@ -11,6 +11,7 @@ from music_cog import music_cog
 from streamer_cog import streamer_cog
 from special_cog import special_cog
 from video_cog import video_cog
+from rep_cog import rep_cog
 import logging
 
 def startup_check():
@@ -32,6 +33,8 @@ def startup_check():
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.presences=True
+intents.members = True
 bot = commands.Bot(
     command_prefix=commands.when_mentioned_or('!'),
     description="SwannyBot",
@@ -45,9 +48,10 @@ async def setup(bot):
     bot.remove_command("help")
     await bot.add_cog(help_cog(bot))
     await bot.add_cog(music_cog(bot))
-    # await bot.add_cog(streamer_cog(bot))
+    await bot.add_cog(streamer_cog(bot))
     await bot.add_cog(special_cog(bot))
     await bot.add_cog(video_cog(bot))
+    await bot.add_cog(rep_cog(bot))
 async def main():
     async with bot:
     #startup_check()
