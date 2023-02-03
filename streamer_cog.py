@@ -1,16 +1,13 @@
 import asyncio
 import logging
-import shutil
-import sqlite3
 import time
 from datetime import datetime
 from datetime import timedelta
-from os.path import exists
 import discord
 import requests
 from discord.ext import commands
 from discord.ext import tasks
-
+import database
 import swannybottokens
 
 
@@ -25,6 +22,7 @@ class channelInfo():
         self.offline_image_url = None
         self.display_name = None
 
+
     # for parsing a user
     def parseUser(self, userData):
         self.id = userData["data"][0]['id']
@@ -35,35 +33,21 @@ class channelInfo():
 
 
 class streamer_cog(commands.Cog):
-    db = None
     cur = None
+
 
     def __init__(self, bot):
         self.bot = bot
-
-        # make db backup if exists, for testing
-        if exists('streamer.db'):
-            shutil.copy('streamer.db', 'streamer.db.backup')
-
-        self.db = sqlite3.connect('streamer.db')
-        self.db.row_factory = sqlite3.Row
-        logging.info("was able to open database file, checking for integrity")
-        self.cur = self.db.cursor()
-        # run self check once database opens
-        #todo: delete channels that have no associated guilds
-        self.selfCheck()
         self.TwitchClientID = swannybottokens.TwitchClientID
         self.TwitchSecret = swannybottokens.TwitchSecret
         # begin checking channels
         # todo: make wait until after everything above goes
+        self.dbhandler=database.dbhandler()
         self.checkChannels.start()
-
-        def __del__(self):
-            self.db.close()
 
     @tasks.loop(seconds=60)
     async def checkChannels(self):
-        for row in self.cur.execute("Select * from streamers"):
+        for row in self.dbhandler.execute("select * from streamers"):
             #print("Querying twitch for info on " + row["TwitchUserID"])
             self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
             oauth = {
@@ -95,9 +79,7 @@ class streamer_cog(commands.Cog):
                 #print(streamData)
                 print(streamData["user_name"] + " went live at"+str(time.time()))
                 # todo parse discords to update/send update message
-                for row in self.cur.execute(
-                        "select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",
-                        (row["TwitchUserID"],)):
+                for row in self.dbhandler.execute("select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",(row["TwitchUserID"],)):
                     destChannel = self.bot.get_channel(int(row["ChannelID"]))
                     richEmbed = discord.Embed(
                         title=streamData["user_login"] + " is live! Playing " + streamData["game_name"] + "!",
@@ -105,9 +87,9 @@ class streamer_cog(commands.Cog):
                     ).set_image(url=streamData["thumbnail_url"]).set_thumbnail(
                         url=streamData["thumbnail_url"])
                     await destChannel.send(embed=richEmbed)
-                self.db.execute('''update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?''',
+                self.dbhandler.execute('''update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?''',
                                 (streamData["user_id"],))
-                self.db.commit()
+                self.dbhandler.commit()
 
     @checkChannels.before_loop
     async def before_checkChannels(self):
@@ -124,8 +106,8 @@ class streamer_cog(commands.Cog):
         if twitchChannelInfo == False:
             await ctx.send("Not a valid twitch channel! Check your spelling!")
             return
-        self.cur.execute("INSERT into Streamers VALUES(?,?)", (twitchChannelInfo.id, datetime.min))
-        self.cur.execute("INSERT into guildStreamers (GuildID,TwitchUserID) values (?,?) ",
+        self.dbhandler.execute("INSERT into Streamers VALUES(?,?)", (twitchChannelInfo.id, datetime.min))
+        self.dbhandler.execute("INSERT into guildStreamers (GuildID,TwitchUserID) values (?,?) ",
                          (guild, twitchChannelInfo.id))
         self.db.commit()
         richEmbed = discord.Embed(
@@ -141,11 +123,11 @@ class streamer_cog(commands.Cog):
         guild = ctx.guild.id
         currentChannel = ctx.channel.id
         # TODO:fix
-        self.cur.execute("Select * From guildChannels where GuildID=?", (guild,))
-        row = self.cur.fetchone()
+        data = self.dbhandler.execute("Select * From guildChannels where GuildID=?", (guild,))
+        row = data.fetchone()
         if row == None or len(row) == 0:
-            self.cur.execute('''INSERT INTO guildChannels(GuildID,ChannelID) VALUES(?,?)''', (guild, currentChannel))
-            self.db.commit()
+            self.dbhandler.execute('''INSERT INTO guildChannels(GuildID,ChannelID) VALUES(?,?)''', (guild, currentChannel))
+            self.dbhandler.commit()
             await ctx.send("Successfully made this channel the default for stream notifications!")
             return
 
@@ -164,9 +146,9 @@ class streamer_cog(commands.Cog):
         try:
             reply = await self.bot.wait_for('message', check=check, timeout=10)
             if reply:
-                self.cur.execute('''update guildChannels set ChannelID=? where GuildID=?''',
+                self.dbhandler.execute('''update guildChannels set ChannelID=? where GuildID=?''',
                                  (currentChannel, guild))
-                self.db.commit()
+                self.dbhandler.commit()
                 await ctx.send("Successfully made this channel the default for stream notifications!")
                 return
             elif not reply:
@@ -189,38 +171,10 @@ class streamer_cog(commands.Cog):
         if twitchChannelInfo == False:
             await ctx.send("Not a valid twitch channel! Check your spelling!")
             return
-        self.cur.execute("delete from guildStreamers where GuildID=(?) and TwitchUserID=(?)",
+        self.dbhandler.execute("delete from guildStreamers where GuildID=(?) and TwitchUserID=(?)",
                          (guild, twitchChannelInfo.id))
-        self.db.commit()
+        self.dbhandler.commit()
         await ctx.send('Successfully removed ' + twitchChannelInfo.display_name + " from your list of subscribed twitch channels!")
-
-    def selfCheck(self):
-        self.cur.execute(''' SELECT count(*) FROM sqlite_master WHERE type='table' AND name='TEST' ''')
-        row = self.cur.fetchone()
-        if row[0] == 1:
-            self.cur.execute(''' SELECT * FROM TEST ''')
-            if len(row) < 1:
-                self.initialDBSetup()
-            elif self.cur.fetchone()[0] != 'swannybot':
-                logging.debug("Database was corrupt, rebuilding")
-                self.initialDBSetup()
-            else:
-                logging.info("Database integrity is valid, continuing")
-        else:
-            logging.debug("Database file was not valid! building")
-            self.initialDBSetup()
-
-    def initialDBSetup(self):
-        # todo: possibly change table datatypes to correlate w/ expected values?
-        self.cur.execute('''create table TEST(value text)''')
-        self.cur.execute('''create table streamers(TwitchUserID text, LastStreamTime text )''')
-        self.cur.execute('''create table guildStreamers(GuildID text, TwitchUserID text)''')
-        self.cur.execute('''create table guildChannels(GuildID text, ChannelID text)''')
-        self.db.commit()
-        self.cur.execute('''insert into TEST values ('swannybot')''')
-        self.db.commit()
-        self.db.close()
-        logging.debug("was able to successfully initialize database")
 
     def getTwitchChannel(self, channel):
         # set twitch endpoint to get user profile

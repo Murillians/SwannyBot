@@ -13,7 +13,7 @@ from special_cog import special_cog
 from video_cog import video_cog
 from rep_cog import rep_cog
 import logging
-
+import database
 def startup_check():
     #currently not working, fix downloading function
     # ensure we have lavalink jar
@@ -46,6 +46,7 @@ async def on_ready(self):
 
 async def setup(bot):
     bot.remove_command("help")
+    database.dbhandler()
     await bot.add_cog(help_cog(bot))
     await bot.add_cog(music_cog(bot))
     await bot.add_cog(streamer_cog(bot))
