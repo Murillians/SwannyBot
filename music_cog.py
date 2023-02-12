@@ -45,29 +45,38 @@ class music_cog(commands.Cog):
                                             password=swannybottokens.WavelinkPassword,
                                             spotify_client=spotify.SpotifyClient(client_id=swannybottokens.SpotifyID,
                                                                                  client_secret=swannybottokens.SpotifySecret))
+    #connect function, mostly helper
+    @commands.command()
+    async def connect(self,ctx : commands.Context, *, channel: discord.VoiceChannel = None):
+        try:
+            channel=channel or ctx.author.voice.channel
+        except AttributeError:
+            return await ctx.send("Connect to a voice channel!")
+            raise Exception()
+        vc: wavelink.Player=await channel.connect(cls=wavelink.Player)
+        return vc
 
     # Play Function
     @commands.command(name="play", aliases=["p", "playing"], help="Play the selected song from youtube")
     async def play(self, ctx: commands.Context, *,
                    track: typing.Union[wavelink.YouTubeTrack, wavelink.SoundCloudTrack]):
-        if ctx.author.voice == None:
-            await ctx.send("Connect to a voice channel!")
-            return
-        voice_channel = ctx.author.voice.channel
         if ctx.guild.id not in self.guilds:
             self.guilds[ctx.guild.id] = GuildInfo(ctx.author.voice.channel)
         guild = self.guilds[ctx.guild.id]
-        if voice_channel is None:
-            await ctx.send("Connect to a voice channel!")
-        if ctx.voice_client:
-            if guild.voice_client.is_playing() or guild.voice_client.queue.count > 0:
+        if guild.voice_client is None:
+            try:
+                guild.voice_client = await self.connect(ctx)
+            except Exception:
+                #could not connect to the voice channel for some reason, stop trying to connect
+                return
+        if guild.voice_client.is_playing() or guild.voice_client.queue.count > 0:
                 guild.voice_client.queue.put(track)
                 songEmbed = discord.Embed(
                     title=track.title + " added to queue",
                     url=track.uri
                 ).set_image(url=track.thumb).set_thumbnail(url=track.thumbnail)
                 await ctx.send(embed=songEmbed)
-            if guild.voice_client.queue.count == 0:
+        if guild.voice_client.queue.count == 0:
                 guild.voice_client.queue.put(track)
                 songEmbed = discord.Embed(
                     title=track.title + " added to queue",
@@ -76,16 +85,16 @@ class music_cog(commands.Cog):
                 await ctx.send(embed=songEmbed)
                 await guild.voice_client.play(guild.voice_client.queue.get())
                 guild.status = Status.playing
-        else:
-            guild.voice_client = wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
-            guild.voice_client.queue.put(track)
-            songEmbed = discord.Embed(
-                title=track.title + " added to queue",
-                url=track.uri
-            ).set_image(url=track.thumb).set_thumbnail(url=track.thumbnail)
-            await ctx.send(embed=songEmbed)
-            await guild.voice_client.play(guild.voice_client.queue.get())
-            guild.status = Status.playing
+        #else:
+          #  guild.voice_client = wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+         #   guild.voice_client.queue.put(track)
+         #   songEmbed = discord.Embed(
+         #       title=track.title + " added to queue",
+          #      url=track.uri
+          #  ).set_image(url=track.thumb).set_thumbnail(url=track.thumbnail)
+          #  await ctx.send(embed=songEmbed)
+         #   await guild.voice_client.play(guild.voice_client.queue.get())
+          #  guild.status = Status.playing
 
     # Pause Function
     @commands.command(name="pause", help="Pauses the current song being played")

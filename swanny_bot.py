@@ -1,5 +1,7 @@
+import asyncio
 import os
 
+import discord
 from discord.ext import commands
 
 import swannybottokens
@@ -9,15 +11,8 @@ from music_cog import music_cog
 from streamer_cog import streamer_cog
 from special_cog import special_cog
 from video_cog import video_cog
+from rep_cog import rep_cog
 import logging
-
-class Bot(commands.Bot):
-
-    def __init__(self):
-        super().__init__(command_prefix='!')
-
-    async def on_ready(self):
-        print('Bot is ready!')
 
 def startup_check():
     #currently not working, fix downloading function
@@ -36,13 +31,31 @@ def startup_check():
             logging.fatal("Failed to automatically download lavalink jar, please manually download")
             exit()
 
+intents = discord.Intents.default()
+intents.message_content = True
+intents.presences=True
+intents.members = True
+bot = commands.Bot(
+    command_prefix=commands.when_mentioned_or('!'),
+    description="SwannyBot",
+    intents=intents
+)
+@bot.event
+async def on_ready(self):
+    print('Bot is ready!')
 
-#startup_check()
-bot = Bot()
-bot.remove_command("help")
-bot.add_cog(help_cog(bot))
-bot.add_cog(music_cog(bot))
-bot.add_cog(streamer_cog(bot))
-bot.add_cog(special_cog(bot))
-bot.add_cog(video_cog(bot))
-bot.run(swannybottokens.discord_api_key)
+async def setup(bot):
+    bot.remove_command("help")
+    await bot.add_cog(help_cog(bot))
+    await bot.add_cog(music_cog(bot))
+    await bot.add_cog(streamer_cog(bot))
+    await bot.add_cog(special_cog(bot))
+    await bot.add_cog(video_cog(bot))
+    await bot.add_cog(rep_cog(bot))
+async def main():
+    async with bot:
+    #startup_check()
+    #client = discord.Client(intents=discord.Intents.default())
+        await setup(bot)
+        await bot.start(swannybottokens.discord_api_key)
+asyncio.run(main())
