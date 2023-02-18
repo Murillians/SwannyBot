@@ -45,10 +45,10 @@ class streamer_cog(commands.Cog):
         self.dbhandler=database.dbhandler()
         self.checkChannels.start()
 
-    @tasks.loop(seconds=60)
+    @tasks.loop(seconds=120)
     async def checkChannels(self):
         for row in self.dbhandler.execute("select * from streamers"):
-            #print("Querying twitch for info on " + row["TwitchUserID"])
+            print("Querying twitch for info on " + row["TwitchUserID"])
             self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
             oauth = {
                 'client_id': self.TwitchClientID,
@@ -74,10 +74,10 @@ class streamer_cog(commands.Cog):
             fixedTime = datetime.fromisoformat(fixedTime)
             # twitch returns a ISO 8601 timestamp w/ 'Z' at the end for timezone, so strip that out cause python freaks
             lastStarted = datetime.fromisoformat(row["LastStreamTime"])
-            lastStarted = lastStarted + timedelta(hours=12)
+            lastStarted = lastStarted + timedelta(hours=6)
             if (streamData["type"] == "live") and (fixedTime > lastStarted):
                 #print(streamData)
-                print(streamData["user_name"] + " went live at"+str(time.time()))
+                print(streamData["user_name"] + " went live at "+str(time.time()))
                 # todo parse discords to update/send update message
                 for row in self.dbhandler.execute("select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",(row["TwitchUserID"],)):
                     destChannel = self.bot.get_channel(int(row["ChannelID"]))
@@ -86,8 +86,8 @@ class streamer_cog(commands.Cog):
                         url=('https://www.twitch.tv/' + streamData["user_login"])
                     ).set_image(url=streamData["thumbnail_url"]).set_thumbnail(
                         url=streamData["thumbnail_url"])
-                    await destChannel.send(embed=richEmbed)
-                self.dbhandler.execute('''update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?''',
+                   await destChannel.send(embed=richEmbed)
+                self.dbhandler.execute("update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?",
                                 (streamData["user_id"],))
                 self.dbhandler.commit()
 
