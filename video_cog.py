@@ -36,14 +36,14 @@ class video_cog(commands.Cog):
             try:
                 error_code = ydl.download(link)
             except BaseException or error_code:
-                await ctx.channel.send("Was unable to download this file, double check your link and try again")
+                await ctx.reply("Was unable to download this file, double check your link and try again")
                 return
         if remux is True:
             try:
                 info = ydl.extract_info(link)
                 error_code = ydl.download(link)
             except BaseException or error_code:
-                await ctx.channel.send("Was unable to download this file, double check your link and try again")
+                await ctx.reply("Was unable to download this file, double check your link and try again")
                 return
             inputfile=("temp"+"."+info["ext"])
             ffmpeg.input(inputfile).output((info["id"]+"transcode"+".mp4"),vcodec='libx264', acodec="aac").run()
@@ -51,15 +51,22 @@ class video_cog(commands.Cog):
 
         filename=info["id"]
         filesize=os.path.getsize("%s.mp4" % filename)
-        video_file = open("%s.mp4" % filename, 'rb')
+        try:
+            video_file = open("%s.mp4" % filename, 'rb')
+        except:
+            ctx.reply("Unable to attach file")
         if filesize > 8000000:
-            await ctx.channel.send("File is too large, unable to embed")
+            await ctx.reply("File is too large, unable to embed")
             os.remove("%s.mp4" % filename)
         else:
-            await ctx.channel.send(file=File(video_file))
+            await ctx.reply(file=File(video_file))
         video_file.close()
         os.remove("%s.mp4" % filename)
         try:
             os.remove(info["id"]+"transcode"+".mp4")
+        except OSError:
+            pass
+        try:
+            os.remove("temp")
         except OSError:
             pass
