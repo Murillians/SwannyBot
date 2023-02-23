@@ -86,7 +86,7 @@ class streamer_cog(commands.Cog):
                         url=('https://www.twitch.tv/' + streamData["user_login"])
                     ).set_image(url=streamData["thumbnail_url"]).set_thumbnail(
                         url=streamData["thumbnail_url"])
-                   await destChannel.send(embed=richEmbed)
+                    await destChannel.send(embed=richEmbed)
                 self.dbhandler.execute("update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?",
                                 (streamData["user_id"],))
                 self.dbhandler.commit()
