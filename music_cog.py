@@ -98,6 +98,7 @@ class music_cog(commands.Cog):
     async def leave(self, ctx):
         wavelinkPlayer = self.guildPlayers[ctx.guild.id]
         wavelinkPlayer.queue.clear()
+        self.guildPlayers.pop(wavelinkPlayer.guild.id)
         await wavelinkPlayer.disconnect()
 
     ##begin rewrite of event-centric functions
@@ -256,6 +257,8 @@ class music_cog(commands.Cog):
             task = asyncio.create_task(self.timeout(player))
             task.add_done_callback(self.disconnectTimers.discard)
             self.disconnectTimers.add(task)
+
+
     async def timeout(self,player:wavelink.Player):
         await asyncio.sleep(600)
         if player.is_playing() is not True:
