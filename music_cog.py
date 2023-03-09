@@ -110,9 +110,9 @@ class music_cog(commands.Cog):
         currentPlayer = None
         # try to get current player, if not found, connect
         if currentGuild in self.guildPlayers:
-            currentPlayer = self.guildPlayers[currentGuild]
+            currentPlayer: wavelink.Player  = self.guildPlayers[currentGuild]
         else:
-            currentPlayer = await self.connect(ctx)
+            currentPlayer: wavelink.Player = await self.connect(ctx)
             self.guildPlayers[currentGuild] = currentPlayer
 
         # begin trying to add song to queue
@@ -142,8 +142,10 @@ class music_cog(commands.Cog):
             return
         try:
             if currentPlayer.is_playing() is False:
-                await currentPlayer.play(currentPlayer.queue.get())
-        except:
+                track = await currentPlayer.queue.get_wait()
+                await currentPlayer.play(track)
+        except Exception as e :
+            print(e)
             pass
         if isinstance(discordMessage,discord.Embed) is True:
             await ctx.send(embed=discordMessage)
@@ -193,6 +195,7 @@ class music_cog(commands.Cog):
 
     async def youtubeUrlHandler(self, inputUrl, wavelinkPlayer):
         formattedReturnMessage = None
+        track=None
         # YouTube Playlist Handler
         #TODO: possibly make youtube playlists load as partial tracks
         try:
@@ -210,7 +213,7 @@ class music_cog(commands.Cog):
             pass
         #YouTube Music Handler TODO: fix
         if formattedReturnMessage is not None:
-            track = await wavelink.YouTubeMusicTrack.search(query=inputUrl)
+            track = await wavelink.YouTubeMusicTrack.search(query=inputUrl,return_first=True)
             queueError = await self.addTrackToQueue(wavelinkPlayer, track)
             if queueError is None:
                 formattedReturnMessage = discord.Embed(
@@ -222,13 +225,21 @@ class music_cog(commands.Cog):
             return formattedReturnMessage
         # YouTube song/url Handler
         if formattedReturnMessage is None:
-            track = await wavelink.YouTubeTrack.search(query=inputUrl, return_first=True)
+            #try to search a youtube URL first
+            trackList = await wavelink.NodePool.get_node().get_tracks(query=inputUrl,cls=wavelink.Track)
+            #if empty, search youtube, otherwise get the track
+            if len(trackList) == 0:
+                #not a youtube url, go search the song and give back the first result
+                track = await wavelink.YouTubeTrack.search(query=inputUrl, return_first=True)
+            else:
+                track=trackList[0]
             queueError = await self.addTrackToQueue(wavelinkPlayer, track)
             if queueError is None:
                 formattedReturnMessage = discord.Embed(
                     title=track.title + " added to queue",
                     url=track.uri
-                ).set_image(url=track.thumb).set_thumbnail(url=track.thumbnail)
+                )
+                    #.set_image(url=track.thumb).set_thumbnail(url=track.thumbnail)
             else:
                 return queueError
         return formattedReturnMessage
@@ -239,7 +250,7 @@ class music_cog(commands.Cog):
     # helper that adds track to the END of the queue
     async def addTrackToQueue(self, wavelinkPlayer: wavelink.Player, track):
         try:
-            wavelinkPlayer.queue.put(track)
+            await wavelinkPlayer.queue.put_wait(track)
         except wavelink.QueueException:
             return "Queue error, unable to add song"
         except wavelink.QueueFull:
@@ -252,18 +263,21 @@ class music_cog(commands.Cog):
     async def on_wavelink_track_end(self, player: wavelink.Player, track: wavelink.Track, reason):
         currentQueue = player.queue
         if currentQueue.count > 0:
-            await player.play(currentQueue.get())
+            nextSong=await currentQueue.get_wait()
+            await player.play(nextSong)
         else:
             task = asyncio.create_task(self.timeout(player))
             task.add_done_callback(self.disconnectTimers.discard)
             self.disconnectTimers.add(task)
 
 
+#TODO:Fix timeout code not stopping older timeouts correctly
     async def timeout(self,player:wavelink.Player):
         await asyncio.sleep(600)
         if player.is_playing() is not True:
             self.guildPlayers.pop(player.guild.id)
             await player.disconnect()
+
     @commands.Cog.listener()
     async def on_wavelink_websocket_closed(player: wavelink.Player, reason, code):
         logging.info("wavelink websocket closed, Reason: " + reason + " Code: " + code)
