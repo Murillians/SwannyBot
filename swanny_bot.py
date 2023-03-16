@@ -55,7 +55,7 @@ async def setup(bot):
     await bot.add_cog(streamer_cog(bot))
     await bot.add_cog(special_cog(bot))
     await bot.add_cog(video_cog(bot))
-    await bot.add_cog(rep_cog(bot))
+    #await bot.add_cog(rep_cog(bot))
 async def main():
     async with bot:
     #startup_check()
