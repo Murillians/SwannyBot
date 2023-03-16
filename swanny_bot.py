@@ -11,7 +11,7 @@ from music_cog import music_cog
 from streamer_cog import streamer_cog
 from special_cog import special_cog
 from video_cog import video_cog
-from rep_cog import rep_cog
+#from rep_cog import rep_cog
 import logging
 import database
 def startup_check():
@@ -41,7 +41,10 @@ bot = commands.Bot(
     intents=intents
 )
 @bot.event
-async def on_ready(self):
+async def on_ready():
+    discordPresence = discord.Game("all your faves with !p")
+    await bot.change_presence(activity=discordPresence)
+    print(f'Logged in as {bot.user} (ID: {bot.user.id})')
     print('Bot is ready!')
 
 async def setup(bot):
@@ -59,4 +62,5 @@ async def main():
     #client = discord.Client(intents=discord.Intents.default())
         await setup(bot)
         await bot.start(swannybottokens.discord_api_key)
+
 asyncio.run(main())
