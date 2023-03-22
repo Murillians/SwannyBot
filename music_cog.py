@@ -217,7 +217,6 @@ class music_cog(commands.Cog):
         formattedReturnMessage = None
         track = None
         # YouTube Playlist Handler
-        # TODO: possibly make youtube playlists load as partial tracks
         try:
             playlist = await wavelink.YouTubePlaylist.search(inputUrl)
             trackCount = 0
@@ -231,21 +230,6 @@ class music_cog(commands.Cog):
             formattedReturnMessage = str(trackCount) + " songs added to queue!"
         except:
             pass
-        # YouTube Music Handler
-        if formattedReturnMessage is None:
-            try:
-                track = await wavelink.YouTubeMusicTrack.search(inputUrl, return_first=True)
-                queueError = await self.addTrackToQueue(wavelinkPlayer, track)
-                if queueError is None:
-                    formattedReturnMessage = discord.Embed(
-                        title=track.title + " added to queue",
-                        url=track.uri
-                    ).set_image(url=await track.fetch_thumbnail())
-                else:
-                    return queueError
-                return formattedReturnMessage
-            except Exception as e:
-                pass
         # YouTube song/url Handler
         if formattedReturnMessage is None:
             # try to search a youtube URL first
@@ -265,6 +249,22 @@ class music_cog(commands.Cog):
             else:
                 return queueError
         return formattedReturnMessage
+
+        # YouTube Music Handler
+        if formattedReturnMessage is None:
+            try:
+                track = await wavelink.YouTubeMusicTrack.search(inputUrl, return_first=True)
+                queueError = await self.addTrackToQueue(wavelinkPlayer, track)
+                if queueError is None:
+                    formattedReturnMessage = discord.Embed(
+                        title=track.title + " added to queue",
+                        url=track.uri
+                    ).set_image(url=await track.fetch_thumbnail())
+                else:
+                    return queueError
+                return formattedReturnMessage
+            except Exception as e:
+                pass
 
     async def soundcloudUrlHandler(self, song, wavelinkPlayer):
         return None
@@ -289,7 +289,7 @@ class music_cog(commands.Cog):
         if player.autoplay is True:
             return
         currentQueue = payload.player.queue
-        if currentQueue.count > 1:
+        if currentQueue.count >= 1:
             nextSong = await currentQueue.get_wait()
             await player.play(nextSong)
         else:
@@ -312,3 +312,14 @@ class music_cog(commands.Cog):
     @commands.Cog.listener()
     async def on_wavelink_track_stuck(payload: wavelink.TrackEventPayload):
         logging.info("wavelink track stuck, Reason:: " + payload.reason + " track: " + payload.track.title)
+
+    @commands.command(name="bailiff")
+    async def bailiff(self, ctx: commands.Context):
+        player= self.getCurrentPlayer(ctx)
+        if player:
+            baliff = await wavelink.NodePool.get_node().get_tracks(query="https://youtu.be/W9PtKiymAy4", cls=wavelink.YouTubeTrack)
+            baliff = baliff[0]
+            player.queue.put_at_front(baliff)
+            await player.stop()
+        else:
+            await self.play(ctx,song="https://youtu.be/W9PtKiymAy4")
