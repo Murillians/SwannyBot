@@ -109,7 +109,7 @@ class streamer_cog(commands.Cog):
         self.dbhandler.execute("INSERT into Streamers VALUES(?,?)", (twitchChannelInfo.id, datetime.min))
         self.dbhandler.execute("INSERT into guildStreamers (GuildID,TwitchUserID) values (?,?) ",
                          (guild, twitchChannelInfo.id))
-        self.db.commit()
+        self.dbhandler.commit()
         richEmbed = discord.Embed(
             title='Successfully added ' + twitchChannelInfo.display_name + " to your list of subscribed twitch channels!",
             url=('https://www.twitch.tv/' + twitchChannelInfo.user_login)
