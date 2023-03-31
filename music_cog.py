@@ -107,7 +107,16 @@ class music_cog(commands.Cog):
         wavelinkPlayer.queue.clear()
         await wavelinkPlayer.disconnect()
 
-    ##begin rewrite of event-centric functions
+    #command to add song to play next in queue, skips all other songs in queue
+    @commands.command(name = "playnext", aliases = ["pn"], help = "Add a song to be next in queue")
+    async def playNext(self, ctx: commands.Context, *, song: str):
+        tempCtx=ctx
+        tempSong=song
+        await self.play(tempCtx,song=tempSong)
+        player=self.getCurrentPlayer(ctx)
+        lastAdded=player.queue.pop()
+        player.queue.put_at_front(lastAdded)
+
     # play command, should not handle any technical information about playing, only discord channel facing play
     @commands.command(name="play", aliases=["p"], help="Play music! Can handle Spotify, YouTube, and Soundcloud links")
     # Play Function
@@ -186,7 +195,7 @@ class music_cog(commands.Cog):
                     return queueError
             elif decodedUrl['type'] is spotify.SpotifySearchType.album:
                 trackCount = 0
-                # playlist detected, add every track in that playlist to the queue.
+                # album detected, add every track in that playlist to the queue.
                 async for track in spotify.SpotifyTrack.iterator(query=decodedUrl['id'],
                                                                  type=spotify.SpotifySearchType.album):
                     queueError = await self.addTrackToQueue(wavelinkPlayer, track)
