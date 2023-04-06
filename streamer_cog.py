@@ -90,7 +90,7 @@ class streamer_cog(commands.Cog):
             fixedTime = datetime.fromisoformat(fixedTime)
             # twitch returns a ISO 8601 timestamp w/ 'Z' at the end for timezone, so strip that out cause python freaks
             lastStarted = datetime.fromisoformat(row["LastStreamTime"])
-            lastStarted = lastStarted + timedelta(hours=12)
+            lastStarted = lastStarted + timedelta(hours=6)
             if (streamData["type"] == "live") and (fixedTime > lastStarted):
                 #print(streamData)
                 print(streamData["user_name"] + " went live at"+str(time.time()))

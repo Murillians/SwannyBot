@@ -5,11 +5,10 @@ from discord.ext import commands
 import swannybottokens
 import requests
 from help_cog import help_cog
-#from music_cog import music_cog
-#from streamer_cog import streamer_cog
-# from special_cog import special_cog
+from music_cog import music_cog
+from streamer_cog import streamer_cog
+from special_cog import special_cog
 from video_cog import video_cog
-from logger_cog import logger_cog
 import logging
 
 class Bot(commands.Bot):
@@ -42,9 +41,8 @@ def startup_check():
 bot = Bot()
 bot.remove_command("help")
 bot.add_cog(help_cog(bot))
-#bot.add_cog(music_cog(bot))
-#bot.add_cog(streamer_cog(bot))
-bot.add_cog(logger_cog(bot))
-# bot.add_cog(special_cog(bot))
+bot.add_cog(music_cog(bot))
+bot.add_cog(streamer_cog(bot))
+bot.add_cog(special_cog(bot))
 bot.add_cog(video_cog(bot))
 bot.run(swannybottokens.discord_api_key)

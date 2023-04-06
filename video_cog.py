@@ -4,18 +4,28 @@ from discord.ext import commands,tasks
 from discord import File
 import os.path
 class video_cog(commands.Cog):
+    ctxTemp = None
+
+
+    def error_handler(d):
+        if d['status']=='error':
+            video_cog.ctxTemp.channel.send("Was unable to download this file, this link may be unsupported! Double check it!")
+
     ydl_opts = {
-        'format':'best[vcodec!=h265][ext=mp4]',
-        'outtmpl':'%(id)s.mp4'
+        'progress_hooks': [error_handler],
+        'format': 'best[vcodec!=h265][ext=mp4]',
+        'outtmpl': '%(id)s.mp4'
     }
+    #todo: make download reply to calling message
     @commands.command(name="download", aliases=["dl"])
     async def download(self, ctx: commands.Context,arg1):
+        video_cog.ctxTemp=ctx
         ydl = yt_dlp.YoutubeDL(self.ydl_opts)
         link = str(arg1)
         info = ydl.extract_info(link)
         try:
             error_code = ydl.download(link)
-        except BaseException:
+        except BaseException or error_code:
             await ctx.channel.send("Was unable to download this file, double check your link and try again")
             return
         filename=info["id"]
