@@ -69,6 +69,8 @@ class dbhandler():
 
     "Executes a DB query, usage is execute(query, data)"
     "ex: dbhandler.execute(select * from streamers where TwitchUserID=?, swanny)"
+    "note if doing a single select the correct format is dbhandler.execute(select * from streamers where TwitchUserID=?, (data,))"
+    "the trailing comma in the data paramater is necessary for single values"
     def execute(self,query,data=None):
         cur = self.conn.cursor()
         if (data):

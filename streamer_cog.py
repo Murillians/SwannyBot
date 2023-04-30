@@ -8,8 +8,8 @@ import requests
 from discord.ext import commands
 from discord.ext import tasks
 import database
+import aiohttp
 import swannybottokens
-
 
 class channelInfo():
     def __init__(self):
@@ -40,60 +40,55 @@ class streamer_cog(commands.Cog):
         self.bot = bot
         self.TwitchClientID = swannybottokens.TwitchClientID
         self.TwitchSecret = swannybottokens.TwitchSecret
-        # begin checking channels
-        # todo: make wait until after everything above goes
         self.dbhandler=database.dbhandler()
         self.checkChannels.start()
+        oauth = {
+            'client_id': self.TwitchClientID,
+            'client_secret': self.TwitchSecret,
+            "grant_type": 'client_credentials'
+        }
+        p = requests.post('https://id.twitch.tv/oauth2/token', oauth)
+        keys = p.json()
+        self.headers = {
+            'Client-ID': self.TwitchClientID,
+            'Authorization': 'Bearer ' + keys['access_token']
+        }
 
     @tasks.loop(seconds=120)
     async def checkChannels(self):
-        for row in self.dbhandler.execute("select * from streamers"):
-            print("Querying twitch for info on " + row["TwitchUserID"])
-            self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
-            oauth = {
-                'client_id': self.TwitchClientID,
-                'client_secret': self.TwitchSecret,
-                "grant_type": 'client_credentials'
-            }
-            p = requests.post('https://id.twitch.tv/oauth2/token', oauth)
-            keys = p.json()
-            headers = {
-                'Client-ID': self.TwitchClientID,
-                'Authorization': 'Bearer ' + keys['access_token']
-            }
-            # TODO break out into generic twitch access function that takes endpoint target (/helix/?????)
-            stream = requests.get(self.TwitchEndpoint + row["TwitchUserID"], headers=headers, allow_redirects=True,
-                                  timeout=1)
-            streamData = stream.json()
-            # stop running the loop if they aren't live
-            if len(streamData["data"]) == 0:
-                continue
-            streamData = streamData["data"][0]
-            fixedTime = streamData["started_at"]
-            fixedTime = fixedTime[:-1]
-            fixedTime = datetime.fromisoformat(fixedTime)
-            # twitch returns a ISO 8601 timestamp w/ 'Z' at the end for timezone, so strip that out cause python freaks
-            lastStarted = datetime.fromisoformat(row["LastStreamTime"])
-            lastStarted = lastStarted + timedelta(hours=6)
-            if (streamData["type"] == "live") and (fixedTime > lastStarted):
-                #print(streamData)
-                print(streamData["user_name"] + " went live at "+str(time.time()))
-                # todo parse discords to update/send update message
-                for row in self.dbhandler.execute("select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",(row["TwitchUserID"],)):
-                    destChannel = self.bot.get_channel(int(row["ChannelID"]))
-                    richEmbed = discord.Embed(
-                        title=streamData["user_login"] + " is live! Playing " + streamData["game_name"] + "!",
-                        url=('https://www.twitch.tv/' + streamData["user_login"])
-                    ).set_image(url=streamData["thumbnail_url"]).set_thumbnail(
-                        url=streamData["thumbnail_url"])
-                    await destChannel.send(embed=richEmbed)
-                self.dbhandler.execute("update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?",
-                                (streamData["user_id"],))
-                self.dbhandler.commit()
+        self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            for row in self.dbhandler.execute("select * from streamers"):
+                print("Querying twitch for info on " + row["TwitchUserID"])
+                async with session.get(str(self.TwitchEndpoint + row["TwitchUserID"])) as response:
+                    if response.status == 200:
+                        streamData = await response.json()
+                        # stop running the loop if they aren't live
+                        if len(streamData["data"]) == 0:
+                            continue
+                        streamData = streamData["data"][0]
+                        fixedTime = streamData["started_at"]
+                        fixedTime = fixedTime[:-1]
+                        fixedTime = datetime.fromisoformat(fixedTime)
+                        # twitch returns a ISO 8601 timestamp w/ 'Z' at the end for timezone, so strip that out cause python freaks
+                        lastStarted = datetime.fromisoformat(row["LastStreamTime"])
+                        lastStarted = lastStarted + timedelta(hours=6)
+                        if (streamData["type"] == "live") and (fixedTime > lastStarted):
+                            #print(streamData)
+                            print(streamData["user_name"] + " went live at "+str(time.time()))
+                            for row in self.dbhandler.execute("select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",(row["TwitchUserID"],)):
+                                destChannel = self.bot.get_channel(int(row["ChannelID"]))
+                                richEmbed = discord.Embed(
+                                    title=streamData["user_login"] + " is live! Playing " + streamData["game_name"] + "!",
+                                    url=('https://www.twitch.tv/' + streamData["user_login"])
+                                ).set_image(url=streamData["thumbnail_url"]).set_thumbnail(
+                                    url=streamData["thumbnail_url"])
+                                #await destChannel.send(embed=richEmbed)
+                            self.dbhandler.execute("update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?",
+                                            (streamData["user_id"],))
+                            self.dbhandler.commit()
 
-    @checkChannels.before_loop
-    async def before_checkChannels(self):
-        await self.bot.wait_until_ready()
+
 
     # Add Channel Function
     @commands.command(name="add_twitch_channel",
@@ -102,7 +97,7 @@ class streamer_cog(commands.Cog):
         guild = ctx.guild.id
         newchannel = args[0]
         logging.debug("Guild ID: ", guild, " wants to follow ", newchannel)
-        twitchChannelInfo = self.getTwitchChannel(newchannel)
+        twitchChannelInfo = await self.getTwitchChannel(newchannel)
         if twitchChannelInfo == False:
             await ctx.send("Not a valid twitch channel! Check your spelling!")
             return
@@ -114,7 +109,7 @@ class streamer_cog(commands.Cog):
             title='Successfully added ' + twitchChannelInfo.display_name + " to your list of subscribed twitch channels!",
             url=('https://www.twitch.tv/' + twitchChannelInfo.user_login)
         ).set_image(url=twitchChannelInfo.profile_image_url).set_thumbnail(url=twitchChannelInfo.profile_image_url)
-        await ctx.send(embed=richEmbed)
+        await ctx.reply(embed=richEmbed)
 
     # Add Channel Function
     @commands.command(name="set_stream_notifications",
@@ -167,7 +162,7 @@ class streamer_cog(commands.Cog):
         guild = ctx.guild.id
         newchannel = args[0]
         logging.debug("Guild ID: ", guild, " wants to remove ", newchannel)
-        twitchChannelInfo = self.getTwitchChannel(newchannel)
+        twitchChannelInfo = await self.getTwitchChannel(newchannel)
         if twitchChannelInfo == False:
             await ctx.send("Not a valid twitch channel! Check your spelling!")
             return
@@ -175,27 +170,32 @@ class streamer_cog(commands.Cog):
                          (guild, twitchChannelInfo.id))
         self.dbhandler.commit()
         await ctx.send('Successfully removed ' + twitchChannelInfo.display_name + " from your list of subscribed twitch channels!")
+    @commands.command(name="list_twitch_channels",aliases=["twitch_list"], help="See a list of subscribed twitch channels for this server")
+    async def listTwitchChannels(self,ctx):
+        guild=ctx.guild.id
+        channelList="This server is currently subscribed to the following twitch channels:\n"
+        self.TwitchEndpoint = 'https://api.twitch.tv/helix/users?id='
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            rows=self.dbhandler.execute("select * from guildStreamers where GuildID=?",(guild,))
+            for row in rows:
+                async with session.get(str(self.TwitchEndpoint + row["TwitchUserID"])) as response:
+                    if response.status == 200:
+                        streamData = await response.json()
+                        streamData=streamData["data"][0]
+                        username=streamData["display_name"]
+                        channelList+=(username+"\n")
+        await ctx.reply(channelList)
 
-    def getTwitchChannel(self, channel):
+    async def getTwitchChannel(self, channel):
         # set twitch endpoint to get user profile
         self.TwitchEndpoint = 'https://api.twitch.tv/helix/users?login='
-        oauth = {
-            'client_id': self.TwitchClientID,
-            'client_secret': self.TwitchSecret,
-            "grant_type": 'client_credentials'
-        }
-        p = requests.post('https://id.twitch.tv/oauth2/token', oauth)
-        keys = p.json()
-        headers = {
-            'Client-ID': self.TwitchClientID,
-            'Authorization': 'Bearer ' + keys['access_token']
-        }
-        # TODO break out into generic twitch access function that takes endpoint target (/helix/?????)
-        stream = requests.get(self.TwitchEndpoint + channel, headers=headers, allow_redirects=True, timeout=1)
-        userData = stream.json()
-        if (len(userData["data"]) == 0):
-            return False
-        else:
-            returnVal = channelInfo()
-            returnVal.parseUser(userData)
-            return returnVal
+        async with aiohttp.ClientSession(headers=self.headers) as session:
+            async with session.get(str(self.TwitchEndpoint + channel)) as response:
+                if response.status ==200:
+                    userData = await response.json()
+                    if (len(userData["data"]) == 0):
+                        return False
+                    else:
+                        returnVal = channelInfo()
+                        returnVal.parseUser(userData)
+                        return returnVal
