@@ -71,7 +71,7 @@ class video_cog(commands.Cog):
             video_file = open("%s.mp4" % filename, 'rb')
         except:
             ctx.reply("Unable to attach file")
-        if filesize > 8000000:
+        if filesize > 25000000:
             await ctx.reply("File is too large, unable to embed")
             os.remove("%s.mp4" % filename)
         else:
