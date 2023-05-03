@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import datetime
 
 import discord
 from discord.ext import commands
@@ -189,8 +190,12 @@ class music_cog(commands.Cog):
                 if queueError is None:
                     #formattedReturnMessage = str(track.title) + " Has been added to the queue"
                     formattedReturnMessage = discord.Embed(
-                        title=track.name + " added to queue"
-                    ).set_image(url=track.images[0])
+                        color=0x00DB00,
+                        title=track.name,
+                        description=track.artists[0])\
+                        .set_thumbnail(url=track.images[0])\
+                        .set_author(name="Spotify track added to queue")\
+                        .add_field(name="Song Length",value=datetime.datetime.fromtimestamp(track.length/1000).strftime('%M:%S'))
                 else:
                     return queueError
             elif decodedUrl['type'] is spotify.SpotifySearchType.album:
@@ -204,20 +209,23 @@ class music_cog(commands.Cog):
                         pass
                     else:
                         return discord.Message("Could not add songs past " + track.title + " in that album, sorry lol")
-                    formattedReturnMessage = str(trackCount) + " songs added to queue!"
+                formattedReturnMessage = str(trackCount) + " songs added to queue!"
             elif decodedUrl['type'] is spotify.SpotifySearchType.playlist:
                 trackCount = 0
+                playtime = 0
                 # playlist detected, add every track in that playlist to the queue.
                 async for track in spotify.SpotifyTrack.iterator(query=decodedUrl['id'],
                                                                  type=spotify.SpotifySearchType.playlist):
                     queueError = await self.addTrackToQueue(wavelinkPlayer, track)
                     if queueError is None:
                         trackCount += 1
+                        playtime = playtime + track.length
                         pass
                     else:
                         return discord.Message(
                             "Could not add songs past " + track.title + " in that playlist, sorry lol")
-                formattedReturnMessage = str(trackCount) + " songs added to queue!"
+                formattedReturnMessage = discord.Embed(color=0x00DB00, title=str(trackCount) + " songs added to queue!").add_field(name="Total Playtime",
+                           value=datetime.datetime.fromtimestamp(playtime/1000).strftime('%H:%M:%S'))
             else:
                 formattedReturnMessage = discord.Message("SwannyBot is unable to play this type of Spotify URL")
         return formattedReturnMessage
@@ -236,7 +244,7 @@ class music_cog(commands.Cog):
                     pass
                 else:
                     return discord.Message("Could not add songs past " + track.title + " in that playlist, sorry lol")
-            formattedReturnMessage = str(trackCount) + " songs added to queue!"
+            formattedReturnMessage = discord.Embed(color=0xCC0000, title=str(trackCount) + " songs added to queue!")
         except:
             pass
         # YouTube song/url Handler
@@ -252,9 +260,13 @@ class music_cog(commands.Cog):
             queueError = await self.addTrackToQueue(wavelinkPlayer, track)
             if queueError is None:
                 formattedReturnMessage = discord.Embed(
-                    title=track.title + " added to queue",
-                    url=track.uri
-                ).set_image(url=track.thumb).set_thumbnail(url=track.thumbnail)
+                    color=0xCC0000,
+                    title=track.title,
+                    description=track.author,
+                    url=track.uri)\
+                    .set_thumbnail(url=track.thumbnail)\
+                    .set_author(name="Youtube track added to queue")\
+                    .add_field(name="Song Length",value=datetime.datetime.fromtimestamp(track.length/1000).strftime('%M:%S'))
             else:
                 return queueError
         return formattedReturnMessage
