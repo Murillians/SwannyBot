@@ -82,13 +82,14 @@ class music_cog(commands.Cog):
                 break
             retval += currentQueue[i].title + '\n'
         if len(autoplayQueue) != 0:
-            retval+="\nAutoPlay Queue:\n"
+            retval+="\nAutoPlay Queue: \n\n"
             for i in range(0,len(autoplayQueue)):
                 if i > 4:
                     break
-                retval += autoplayQueue[i].title + '-' + autoplayQueue[i].artists[0] + '\n'
+                retval += autoplayQueue[i].title + ' - ' + autoplayQueue[i].artists[0] + '\n'
         if retval != "Up Next: \n\n" or wavelinkPlayer.is_playing():
-            await ctx.send(str(nowPlaying + retval))
+            # await ctx.send(str(nowPlaying + retval))
+            await ctx.send(embed=discord.Embed(color=0x698BE6,title=wavelinkPlayer.current.title, description=wavelinkPlayer.current.author).set_author(name="Now Playing", icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(text=retval))
         else:
             await ctx.send("No music in the queue.")
 
@@ -172,10 +173,20 @@ class music_cog(commands.Cog):
             currentPlayer: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player) #type: ignore
         if currentPlayer.autoplay is False:
             currentPlayer.autoplay = True
-            await ctx.reply("AutoPlay has been enabled for Spotify tracks!")
+            await ctx.reply("AutoPlay has been ENABLED for Spotify tracks!")
         else:
             currentPlayer.autoplay = False
-            await ctx.reply("AutoPlay has been disabled for Spotify tracks!")
+            await ctx.reply("AutoPlay has been DISABLED for Spotify tracks!")
+
+    def richEmbed(self, color, title, artists, images, service, song_length):
+        return discord.Embed(
+            # Color in hexicode
+            color=color,
+            # Title of track, typically track.name
+            title=title,
+            # Remaining information, typically track.artists, track.images, "Spotify" or "Youtube", and datetime.timedelta(milliseconds=track.length)
+            description=artists).set_thumbnail(url=images).set_author(name=service + " track added to queue").add_field(name="Song Length", value=song_length)
+
 
     # Helper function to decode Spotify tracks, will queue up the appropriate track/playlist/album/artist and return a formatted message
     # has to search the spotify url and load from youtube
@@ -189,13 +200,7 @@ class music_cog(commands.Cog):
                 queueError = await self.addTrackToQueue(wavelinkPlayer, track)
                 if queueError is None:
                     #formattedReturnMessage = str(track.title) + " Has been added to the queue"
-                    formattedReturnMessage = discord.Embed(
-                        color=0x00DB00,
-                        title=track.name,
-                        description=track.artists[0])\
-                        .set_thumbnail(url=track.images[0])\
-                        .set_author(name="Spotify track added to queue")\
-                        .add_field(name="Song Length",value=datetime.datetime.fromtimestamp(track.length/1000).strftime('%M:%S'))
+                    formattedReturnMessage = self.richEmbed(0x00DB00,track.name,track.artists[0],track.images[0],"Spotify",datetime.timedelta(milliseconds=track.length))
                 else:
                     return queueError
             elif decodedUrl['type'] is spotify.SpotifySearchType.album:
@@ -225,7 +230,7 @@ class music_cog(commands.Cog):
                         return discord.Message(
                             "Could not add songs past " + track.title + " in that playlist, sorry lol")
                 formattedReturnMessage = discord.Embed(color=0x00DB00, title=str(trackCount) + " songs added to queue!").add_field(name="Total Playtime",
-                           value=datetime.datetime.fromtimestamp(playtime/1000).strftime('%H:%M:%S'))
+                           value=datetime.timedelta(milliseconds=playtime))
             else:
                 formattedReturnMessage = discord.Message("SwannyBot is unable to play this type of Spotify URL")
         return formattedReturnMessage
@@ -237,14 +242,16 @@ class music_cog(commands.Cog):
         try:
             playlist = await wavelink.YouTubePlaylist.search(inputUrl)
             trackCount = 0
+            playtime = 0
             for track in playlist.tracks:
                 queueError = await self.addTrackToQueue(wavelinkPlayer, track)
                 if queueError is None:
                     trackCount += 1
+                    playtime = playtime + track.length
                     pass
                 else:
                     return discord.Message("Could not add songs past " + track.title + " in that playlist, sorry lol")
-            formattedReturnMessage = discord.Embed(color=0xCC0000, title=str(trackCount) + " songs added to queue!")
+            formattedReturnMessage = discord.Embed(color=0xCC0000, title=str(trackCount) + " songs added to queue!").add_field(name="Total Playtime",value=datetime.timedelta(milliseconds=playtime))
         except:
             pass
         # YouTube song/url Handler
@@ -259,14 +266,7 @@ class music_cog(commands.Cog):
                 track = trackList[0]
             queueError = await self.addTrackToQueue(wavelinkPlayer, track)
             if queueError is None:
-                formattedReturnMessage = discord.Embed(
-                    color=0xCC0000,
-                    title=track.title,
-                    description=track.author,
-                    url=track.uri)\
-                    .set_thumbnail(url=track.thumbnail)\
-                    .set_author(name="Youtube track added to queue")\
-                    .add_field(name="Song Length",value=datetime.datetime.fromtimestamp(track.length/1000).strftime('%M:%S'))
+                formattedReturnMessage = self.richEmbed(0xCC0000,track.title,track.author,track.thumbnail,"Youtube",str(datetime.timedelta(milliseconds=track.length)))
             else:
                 return queueError
         return formattedReturnMessage
