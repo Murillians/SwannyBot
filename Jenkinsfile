@@ -4,19 +4,19 @@ pipeline {
       stage('prepare files') {
         steps {
           sh "> .swannybot.db"
-          withCredentials([string(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
+          withCredentials([file(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
             sh "echo ${SECRET} > ./swannybot.db"
           }
           sh "> .swannybottokens.py"
-          withCredentials([string(credentialsId: 'swannybottokens', variable: 'SECRET')]) {
+          withCredentials([file(credentialsId: 'swannybottokens', variable: 'SECRET')]) {
             sh "echo ${SECRET} > ./swannybottokens.py"
           }
           sh "> special_cog.py"
-          withCredentials([string(credentialsId: 'special_cog', variable: 'SECRET')]) {
+          withCredentials([file(credentialsId: 'special_cog', variable: 'SECRET')]) {
             sh "echo ${SECRET} > ./special_cog.py"
           }
           sh "> ./wavelink/application.yml"
-          withCredentials([string(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
+          withCredentials([file(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
             sh "echo ${SECRET} > ./wavelink/application.yml"
           }
         }
