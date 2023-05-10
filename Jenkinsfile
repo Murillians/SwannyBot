@@ -24,6 +24,7 @@ pipeline {
             sh "echo ${SECRET} > ./wavelink/Lavalink.jar"
         }
       }
+      }
         stage('Build docker image'){
             steps{
                 sh 'sudo docker build -t swannybot .'
@@ -33,5 +34,4 @@ pipeline {
             }
       }
   }
-}
 }
