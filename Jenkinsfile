@@ -19,11 +19,18 @@ pipeline {
           withCredentials([file(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
             sh "echo ${SECRET} > ./wavelink/application.yml"
           }
+          sh "> ./wavelink/Lavalink.jar"
+          withCredentials([file(credentialsId: 'Lavalink', variable: 'SECRET')]) {
+            sh "echo ${SECRET} > ./wavelink/Lavalink.jar"
         }
       }
         stage('Build docker image'){
-          agent{ dockerfile true}
-            steps{}
+            steps{
+                sh 'sudo docker build -t swannybot .'
+                echo 'Build Image Completed'
+                sh 'sudo docker push docker:5000/swannybot/swannybot:latest'
+                echo 'Push Image Completed'
+            }
       }
   }
 }
