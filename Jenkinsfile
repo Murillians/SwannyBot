@@ -22,9 +22,7 @@ pipeline {
         }
       }
         stage('Build docker image'){
-          docker.withRegistry(docker:5000)
-              def customImage = docker.build("swannybot:${env.BUILD_ID}")
-              customImage.push()
-        }
+          agent{ dockerfile true}
       }
   }
+}
