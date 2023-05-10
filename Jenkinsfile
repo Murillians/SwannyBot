@@ -27,7 +27,7 @@ pipeline {
       }
         stage('Build docker image'){
             steps{
-                sh 'docker build -t swannybot .'
+                sh 'docker build -t swannybot/swannybot .'
                 echo 'Build Image Completed'
                 sh 'docker push docker:5000/swannybot/swannybot:latest'
                 echo 'Push Image Completed'
