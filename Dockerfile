@@ -10,7 +10,6 @@ RUN apt-get update -y &&\
     apt-get install -y bash &&\
     apt-get install -y ffmpeg &&\
     apt-get install -y  openjdk-17-jdk &&\
-    pip install --upgrade pip &&\
     pip install -r requirements.txt --user
 ENV TZ=America/New_York
 CMD [ "/bin/bash","-c","java -jar /swannybot/wavelink/Lavalink.jar & python3 /swannybot/swanny_bot.py" ]
