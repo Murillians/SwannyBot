@@ -23,6 +23,7 @@ pipeline {
       }
         stage('Build docker image'){
           agent{ dockerfile true}
+            steps{}
       }
   }
 }
