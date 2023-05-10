@@ -20,6 +20,7 @@ pipeline {
             sh "echo ${SECRET} > ./wavelink/application.yml"
           }
         }
+      }
         stage('Test') {
             steps {
                 sh 'node --version'
@@ -27,5 +28,4 @@ pipeline {
             }
         }
     }
-}
 }
