@@ -59,7 +59,7 @@ class streamer_cog(commands.Cog):
         self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
         async with aiohttp.ClientSession(headers=self.headers) as session:
             for row in self.dbhandler.execute("select * from streamers"):
-                print("Querying twitch for info on " + row["TwitchUserID"])
+                #print("Querying twitch for info on " + row["TwitchUserID"])
                 async with session.get(str(self.TwitchEndpoint + row["TwitchUserID"])) as response:
                     if response.status == 200:
                         streamData = await response.json()
