@@ -1,31 +1,37 @@
 pipeline {
-    agent { dockerfile true }
+    agent any
     stages {
       stage('prepare files') {
         steps {
           sh "> .swannybot.db"
-          withCredentials([string(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
-            sh "echo ${SECRET} > .swannybot.db"
+          withCredentials([file(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
+            sh "echo ${SECRET} > ./swannybot.db"
           }
           sh "> .swannybottokens.py"
-          withCredentials([string(credentialsId: 'swannybottokens', variable: 'SECRET')]) {
-            sh "echo ${SECRET} > .swannybottokens.py"
+          withCredentials([file(credentialsId: 'swannybottokens', variable: 'SECRET')]) {
+            sh "echo ${SECRET} > ./swannybottokens.py"
           }
           sh "> special_cog.py"
-          withCredentials([string(credentialsId: 'specialcog', variable: 'SECRET')]) {
-            sh "echo ${SECRET} > .special_cog.db"
+          withCredentials([file(credentialsId: 'special_cog', variable: 'SECRET')]) {
+            sh "echo ${SECRET} > ./special_cog.py"
           }
           sh "> ./wavelink/application.yml"
-          withCredentials([string(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
+          withCredentials([file(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
             sh "echo ${SECRET} > ./wavelink/application.yml"
           }
+          sh "> ./wavelink/Lavalink.jar"
+          withCredentials([file(credentialsId: 'Lavalink', variable: 'SECRET')]) {
+            sh "echo ${SECRET} > ./wavelink/Lavalink.jar"
         }
       }
-        stage('Test') {
-            steps {
-                sh 'node --version'
-                sh 'svn --version'
+      }
+        stage('Build docker image'){
+            steps{
+                sh 'docker build -t docker:5000/swannybot .'
+                echo 'Build Image Completed'
+                sh 'docker push docker:5000/swannybot'
+                echo 'Push Image Completed'
             }
-        }
-    }
+      }
+  }
 }
