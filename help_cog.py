@@ -27,7 +27,7 @@ class help_cog(commands.Cog):
 
 !clear, !c, !bin - Stops the music and clears the queue.
 
-!leave, !disconnect, !l, !d - Disconnects Swanny Bot from the voice channel.
+!leave, !disconnect, !l, !d - Disconnects SwannyBot from the voice channel.
 
 !pause - Pauses the current song being played or resumes if already paused.
 
