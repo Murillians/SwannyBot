@@ -8,7 +8,6 @@ class help_cog(commands.Cog):
 ```
 !stream_help - Show streaming help commands.
 
-
 ----------Music Player Commands----------
 !play, !p <link> - Reads Spotify/Youtube song/playlist link and plays it in your current connected voice channel. 
     - Will search for the song via youtube if no link is provided.
