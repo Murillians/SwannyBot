@@ -11,7 +11,6 @@ RUN apt-get update -y &&\
     apt-get install -y ffmpeg &&\
     apt-get install -y  openjdk-17-jdk &&\
     pip install -r requirements.txt --user \
-ADD start.sh /
 RUN chmod +x /start.sh
 ENV TZ=America/New_York
 #CMD [ "/bin/bash","-c","java -jar /swannybot/wavelink/Lavalink.jar & python3 /swannybot/swanny_bot.py" ]
