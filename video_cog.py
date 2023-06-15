@@ -29,6 +29,7 @@ class video_cog(commands.Cog):
         # attempt a remove if didnt delete incorrectly last time
         try:
             os.remove("temp.mp4")
+            os.remove("temp")
         except:
             pass
         self.ctxTemp=ctx
@@ -38,6 +39,10 @@ class video_cog(commands.Cog):
         remux = False
         try:
             info = ydl.extract_info(link, download=False)
+            # if there are subentries in the pulled json info, grab the first one as it is the desired quote tweet
+            if "entries" in info:
+                info=info["entries"][0]
+
         except BaseException:
             logging.info("Available format not found, forcing a transcode")
             ydl = yt_dlp.YoutubeDL(self.ydl_opts_transcode)  # remake downloader to grab best quality
@@ -63,26 +68,23 @@ class video_cog(commands.Cog):
             # actual transcoding function
             ffmpeg.input(inputfile).output((info["id"] + ".mp4"), vcodec='libx264', acodec="aac").run()
             # delete the temporary downloded file
-            os.remove("temp" + "." + info["ext"])
-
         filename = info["id"]
-        filesize = os.path.getsize("%s.mp4" % filename)
         try:
+            filesize = os.path.getsize("%s.mp4" % filename)
             video_file = open("%s.mp4" % filename, 'rb')
+            if filesize > 25000000:
+                await ctx.reply("File is too large, unable to embed")
+            else:
+                await ctx.reply(file=File(video_file))
+            video_file.close()
         except:
-            ctx.reply("Unable to attach file")
-        if filesize > 25000000:
-            await ctx.reply("File is too large, unable to embed")
-            os.remove("%s.mp4" % filename)
-        else:
-            await ctx.reply(file=File(video_file))
-        video_file.close()
-        os.remove("%s.mp4" % filename)
+            await ctx.reply("Unable to attach file")
         try:
-            os.remove(info["id"] + "transcode" + ".mp4")
-        except OSError:
-            pass
-        try:
-            os.remove("temp")
+            dir_path = os.path.dirname(os.path.realpath(__file__))
+            files = os.listdir(dir_path)
+            for item in files:
+                if item.endswith(".mp4"):
+                    os.remove(os.path.join(dir_path, item))
+
         except OSError:
             pass
