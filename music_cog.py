@@ -261,7 +261,8 @@ class music_cog(commands.Cog):
             # if empty, search youtube, otherwise get the track
             if len(trackList) == 0:
                 # not a youtube url, go search the song and give back the first result
-                track = await wavelink.YouTubeTrack.search(inputUrl, return_first=True)
+                track = await wavelink.YouTubeTrack.search(inputUrl)
+                track=track[0]
             else:
                 track = trackList[0]
             queueError = await self.addTrackToQueue(wavelinkPlayer, track)
@@ -274,7 +275,8 @@ class music_cog(commands.Cog):
         # YouTube Music Handler
         if formattedReturnMessage is None:
             try:
-                track = await wavelink.YouTubeMusicTrack.search(inputUrl, return_first=True)
+                track = await wavelink.YouTubeMusicTrack.search(inputUrl)
+                track = track[0]
                 queueError = await self.addTrackToQueue(wavelinkPlayer, track)
                 if queueError is None:
                     formattedReturnMessage = discord.Embed(
