@@ -1,5 +1,5 @@
 #!/bin/bash
 #lavalink
-nohup java -jar ./wavelink/Lavalink.jar &
+cd /swannybot/wavelink && java -jar ./Lavalink.jar&
 #swannybot
-python3 swanny_bot.py
+cd /swannybot/ && python3 swanny_bot.py
