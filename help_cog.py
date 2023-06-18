@@ -8,6 +8,9 @@ class help_cog(commands.Cog):
 ```
 !stream_help - Show streaming help commands.
 
+!dl <link> - Reads Tik Tok/Twitter link and embeds the raw video directly to discord. Upload limit based on server-wide
+    upload limit (Default 8 MB with no server boost).
+
 ----------Music Player Commands----------
 !play, !p <link> - Reads Spotify/Youtube song/playlist link and plays it in your current connected voice channel. 
     - Will search for the song via youtube if no link is provided.
@@ -22,6 +25,8 @@ class help_cog(commands.Cog):
     
 !queue, !q - Displays the current music queue.
 
+!shuffle, !shuf - Shuffles the current music queue.
+
 !skip, !s - Skips the current song currently playing.
 
 !clear, !c, !bin - Stops the music and clears the queue.
@@ -32,7 +37,7 @@ class help_cog(commands.Cog):
 
 !resume - Resumes playing the current song.
 
-!ty_swannybot - Thank the bot for his hard work and he will respond a nice message.
+!ty_swannybot, !tysb - Thank the bot for his hard work and he will respond a nice message.
 ```     
 """
         self.stream_message = """
@@ -69,7 +74,7 @@ The bot checks for streams every 60 seconds.
     @commands.command(name="stream_help", help="Displays streaming commands")
     async def streamHelp(self,ctx):
         await ctx.send(self.stream_message)
-    @commands.command(name="ty_swannybot", help="Say thank you to Swanny Bot")
+    @commands.command(name="ty_swannybot", aliases=["tysb"], help="Say thank you to Swanny Bot")
     async def ty_swannybot(self, ctx):
         message = random.randrange(5)
         if message == 0:

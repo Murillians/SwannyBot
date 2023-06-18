@@ -89,9 +89,24 @@ class music_cog(commands.Cog):
                 retval += autoplayQueue[i].title + ' - ' + autoplayQueue[i].artists[0] + '\n'
         if retval != "Up Next: \n\n" or wavelinkPlayer.is_playing():
             # await ctx.send(str(nowPlaying + retval))
-            await ctx.send(embed=discord.Embed(color=0x698BE6,title=wavelinkPlayer.current.title, description=wavelinkPlayer.current.author).set_author(name="Now Playing", icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(text=retval))
+            await ctx.send(embed=discord.Embed(color=0x698BE6,title=wavelinkPlayer.current.title, description=wavelinkPlayer.current.author).set_author(name="Now Playing (from Nick's Machine)", icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(text=retval))
         else:
             await ctx.send("No music in the queue.")
+
+    # Shuffle Queue Function
+    @commands.command(name="shuffle", aliases=["shuf"], help="Shuffles the current queue")
+    async def shuffle(self, ctx):
+        wavelinkPlayer = self.getCurrentPlayer(ctx)
+        currentQueue = wavelinkPlayer.queue
+        autoplayQueue = wavelinkPlayer.auto_queue
+        if wavelinkPlayer.is_playing():
+            if len(currentQueue) or len(autoplayQueue) != 0:
+                currentQueue.shuffle()
+                autoplayQueue.shuffle()
+                await ctx.send("The current queue was shuffled!")
+        else:
+            await ctx.send("No music in the queue!")
+
 
     # Clear Queue Function
     @commands.command(name="clear", aliases=["c", "bin"], help="Stops the current song and clears the queue")
@@ -197,6 +212,7 @@ class music_cog(commands.Cog):
         if decodedUrl is not None:
             if decodedUrl['type'] is spotify.SpotifySearchType.track:
                 track = await spotify.SpotifyTrack.search(query=spotifyLink)
+                track=track[0]
                 queueError = await self.addTrackToQueue(wavelinkPlayer, track)
                 if queueError is None:
                     #formattedReturnMessage = str(track.title) + " Has been added to the queue"
