@@ -89,7 +89,7 @@ class music_cog(commands.Cog):
                 retval += autoplayQueue[i].title + ' - ' + autoplayQueue[i].artists[0] + '\n'
         if retval != "Up Next: \n\n" or wavelinkPlayer.is_playing():
             # await ctx.send(str(nowPlaying + retval))
-            await ctx.send(embed=discord.Embed(color=0x698BE6,title=wavelinkPlayer.current.title, description=wavelinkPlayer.current.author).set_author(name="Now Playing (from Nick's Machine)", icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(text=retval))
+            await ctx.send(embed=discord.Embed(color=0x698BE6,title=wavelinkPlayer.current.title, description=wavelinkPlayer.current.author).set_author(name="Now Playing", icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(text=retval))
         else:
             await ctx.send("No music in the queue.")
 
