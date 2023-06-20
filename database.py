@@ -6,10 +6,17 @@ import time
 from datetime import datetime
 from datetime import timedelta
 from os.path import exists
-
+from sys import platform
 
 class dbhandler():
-    databaseFile = "swannybot.db"
+    databaseFile =""
+    if platform =="linux":
+        databaseFile = "/config/swannybot.db"
+        logging.info("LINUX detected, loading database from /config/swannybot.db")
+    else:
+        databaseFile = "swannybot.db"
+        logging.info("Windows/Other OS detected, loading database from /swannybot.db")
+
     def __init__(self):
         self.conn = None
         self.connect()

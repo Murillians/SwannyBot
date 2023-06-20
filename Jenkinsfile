@@ -3,10 +3,10 @@ pipeline {
     stages {
       stage('prepare files') {
         steps {
-          sh "> swannybot.db"
+          /*sh "> swannybot.db"
           withCredentials([file(credentialsId: 'swannybotdb', variable: 'SECRET')]) {
             sh('cp \$SECRET ./swannybot.db')
-          }
+          }*/
           sh "> swannybottokens.py"
           withCredentials([file(credentialsId: 'swannybottokens', variable: 'SECRET')]) {
             sh('cp \$SECRET ./swannybottokens.py')
