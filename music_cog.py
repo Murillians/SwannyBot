@@ -3,6 +3,7 @@ import logging
 import datetime
 
 import discord
+from discord.enums import try_enum
 from discord.ext import commands
 from wavelink.ext import spotify
 
@@ -341,8 +342,8 @@ class music_cog(commands.Cog):
         return player
 
     @commands.Cog.listener()
-    async def on_wavelink_websocket_closed(payload: wavelink.TrackEventPayload):
-        logging.info("wavelink websocket closed, Reason: " + payload.reason + " Code: " + payload.track.title)
+    async def on_wavelink_websocket_closed(payload: wavelink.WebsocketClosedPayload):
+        logging.info("wavelink websocket closed, Reason: " + payload.reason)
 
     @commands.Cog.listener()
     async def on_wavelink_track_exception(payload: wavelink.TrackEventPayload):
