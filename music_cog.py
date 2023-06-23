@@ -341,17 +341,17 @@ class music_cog(commands.Cog):
         player = node.get_player(ctx.guild.id)
         return player
 
-    @commands.Cog.listener()
-    async def on_wavelink_websocket_closed(payload: wavelink.WebsocketClosedPayload):
-        logging.info("wavelink websocket closed, Reason: " + payload.reason)
+    #@commands.Cog.listener()
+    #async def on_wavelink_websocket_closed(self,payload: wavelink.WebsocketClosedPayload):
+        #logging.info("wavelink websocket closed, Reason: " + payload.reason)
 
-    @commands.Cog.listener()
-    async def on_wavelink_track_exception(payload: wavelink.TrackEventPayload):
-        logging.info("wavelink track error, Reason: " + payload.reason + " track: " + payload.track.title)
+    #@commands.Cog.listener()
+    #async def on_wavelink_track_exception(self,payload: wavelink.TrackEventPayload):
+        #logging.info("wavelink track error, Reason: " + payload.reason + " track: " + payload.track.title)
 
-    @commands.Cog.listener()
-    async def on_wavelink_track_stuck(payload: wavelink.TrackEventPayload):
-        logging.info("wavelink track stuck, Reason:: " + payload.reason + " track: " + payload.track.title)
+    #@commands.Cog.listener()
+    #async def on_wavelink_track_stuck(self,payload: wavelink.TrackEventPayload):
+        #logging.info("wavelink track stuck, Reason:: " + payload.reason + " track: " + payload.track.title)
 
     @commands.command(name="bailiff")
     async def bailiff(self, ctx: commands.Context):
