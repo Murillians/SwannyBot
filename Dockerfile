@@ -12,7 +12,8 @@ RUN apt-get update -y &&\
     apt-get install -y  openjdk-17-jdk &&\
     apt-get install -y nano &&\
     pip install -r requirements.txt --user &&\
-    #manually install latest wavelink because of breaking changes, remove upon release of wavelink >2.5.1
+    #manually install latest wavelink because of breaking changes, remove upon release of wavelink >2.5.1 \
+    apt-get install -y git &&\
     pip install -U git+https://github.com/PythonistaGuild/Wavelink.git --force-reinstall &&\
     chmod +x start.sh
 ENV TZ=America/New_York
