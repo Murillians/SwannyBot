@@ -62,6 +62,9 @@ class video_cog(commands.Cog):
                 return
             # if the file is too big before the transcode, don't even bother with the transcode
             inputfile = ("temp." + info['ext'])
+            if not os.path.exists(inputfile):
+                inputfile = ("temp")
+
             if os.path.getsize(inputfile) > 25000000:
                 await ctx.reply("File is too large, unable to embed")
                 os.remove(inputfile)
