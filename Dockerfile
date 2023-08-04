@@ -12,11 +12,6 @@ RUN apt-get update -y &&\
     apt-get install -y  openjdk-17-jdk &&\
     apt-get install -y nano &&\
     pip install -r requirements.txt --user &&\
-    #manually install latest wavelink because of breaking changes, remove upon release of wavelink >2.5.1 \
-    apt-get install -y git &&\
-    pip install -U git+https://github.com/PythonistaGuild/Wavelink.git --force-reinstall &&\
-    #manually install beta version of YTDLP to get around elon being a fucking idiot\
-    pip install --force-reinstall https://github.com/bashonly/yt-dlp/archive/fix/twitter-noauth.tar.gz &&\
     chmod +x start.sh
 ENV TZ=America/New_York
 #CMD [ "/bin/bash","-c","java -jar /swannybot/wavelink/Lavalink.jar & python3 /swannybot/swanny_bot.py" ]
