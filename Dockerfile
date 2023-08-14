@@ -12,6 +12,7 @@ RUN apt-get update -y &&\
     apt-get install -y  openjdk-17-jdk &&\
     apt-get install -y nano &&\
     pip install -r requirements.txt --user &&\
+    curl -JL https://github.com/lavalink-devs/Lavalink/releases/latest/download/Lavalink.jar -o ./wavelink/Lavalink.jar
     chmod +x start.sh
 ENV TZ=America/New_York
 #CMD [ "/bin/bash","-c","java -jar /swannybot/wavelink/Lavalink.jar & python3 /swannybot/swanny_bot.py" ]

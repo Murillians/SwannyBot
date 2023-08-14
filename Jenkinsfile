@@ -19,10 +19,6 @@ pipeline {
           withCredentials([file(credentialsId: 'applicationyml', variable: 'SECRET')]) {
             sh('cp \$SECRET ./wavelink/application.yml')
           }
-          sh "> ./wavelink/Lavalink.jar"
-          withCredentials([file(credentialsId: 'Lavalink', variable: 'SECRET')]) {
-            sh('cp \$SECRET ./wavelink/Lavalink.jar')
-          }
       }
       }
         stage('Build docker image'){
