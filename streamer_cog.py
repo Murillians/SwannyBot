@@ -90,6 +90,7 @@ class streamer_cog(commands.Cog):
 
 
 
+
     # Add Channel Function
     @commands.command(name="add_twitch_channel",
                       help="Adds new channel to list of channels this server will be notified of")
