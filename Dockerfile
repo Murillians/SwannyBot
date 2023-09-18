@@ -13,9 +13,10 @@ RUN apt-get update -y &&\
     apt-get install -y nano &&\
     pip install -r requirements.txt --user &&\
     apt-get install -y curl &&\
+    #until twitter fixes make it to pip
+    pip install --force-reinstall https://github.com/yt-dlp/yt-dlp/archive/master.tar.gz &&\
     curl -JL https://github.com/lavalink-devs/Lavalink/releases/latest/download/Lavalink.jar -o ./wavelink/Lavalink.jar &&\
     chmod +x start.sh
 ENV TZ=America/New_York
-#CMD [ "/bin/bash","-c","java -jar /swannybot/wavelink/Lavalink.jar & python3 /swannybot/swanny_bot.py" ]
 CMD ["/swannybot/start.sh"]
 
