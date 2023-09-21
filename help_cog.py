@@ -76,7 +76,7 @@ The bot checks for streams every 60 seconds.
         await ctx.send(self.stream_message)
     @commands.command(name="ty_swannybot", aliases=["tysb"], help="Say thank you to Swanny Bot")
     async def ty_swannybot(self, ctx):
-        message = random.randrange(5)
+        message = random.randrange(6)
         if message == 0:
             await ctx.send('Any time!')
         elif message == 1:
