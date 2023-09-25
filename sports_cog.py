@@ -410,7 +410,9 @@ class sports_cog(commands.Cog):
 			nextOpponent = "@ " + teamDict['nextEvent'][0]['competitions'][0]['competitors'][0]['team'][
 				'displayName']
 		
-		gameVenue = gameVenue[:int(gameVenue.find("("))]
+		if '(' in gameVenue:
+			gameVenue = gameVenue[:int(gameVenue.find("("))]
+			
 		gameVenue += "\n" + teamDict['nextEvent'][0]['competitions'][0]['venue']['address']['city'] + ", " + \
 					 teamDict['nextEvent'][0]['competitions'][0]['venue']['address']['state']
 		
