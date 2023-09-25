@@ -12,6 +12,7 @@ from streamer_cog import streamer_cog
 from special_cog import special_cog
 from video_cog import video_cog
 from rep_cog import rep_cog
+from sports_cog import sports_cog
 import logging
 import database
 
@@ -41,6 +42,7 @@ async def setup(bot):
     await bot.add_cog(special_cog(bot))
     await bot.add_cog(video_cog(bot))
     await bot.add_cog(rep_cog(bot))
+    await bot.add_cog(sports_cog(bot))
 async def main():
     async with bot:
     #client = discord.Client(intents=discord.Intents.default())

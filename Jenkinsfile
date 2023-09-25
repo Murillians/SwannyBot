@@ -23,9 +23,9 @@ pipeline {
       }
         stage('Build docker image'){
             steps{
-                sh 'docker build -t reggie:5000/swannybot .'
+                sh 'docker build -t reggie:5000/swannybot:sportscog .'
                 echo 'Build Image Completed'
-                sh 'docker push reggie:5000/swannybot'
+                sh 'docker push reggie:5000/swannybot:sportscog'
                 echo 'Push Image Completed'
             }
       }
