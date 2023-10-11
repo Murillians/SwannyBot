@@ -14,7 +14,7 @@ from video_cog import video_cog
 from rep_cog import rep_cog
 import logging
 import database
-
+from twitterfixer_cog import twitterfixer_cog
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -41,6 +41,7 @@ async def setup(bot):
     await bot.add_cog(special_cog(bot))
     await bot.add_cog(video_cog(bot))
     await bot.add_cog(rep_cog(bot))
+    await bot.add_cog(twitterfixer_cog(bot))
 async def main():
     async with bot:
     #client = discord.Client(intents=discord.Intents.default())
