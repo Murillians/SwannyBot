@@ -13,13 +13,13 @@ class twitterfixer_cog(commands.Cog):
         #1: make sure the author is NOT swanny bot to prevent recursion
         #2: dont do it if its a command
         #3: make sure theres a twitter/x link SOMEWHERE in the message
-        if  message.author.id != swannybottokens.swannybotid and message.content[0] != "!" and "twitter.com" in message.content or "x.com" in message.content:
+        if message.author.id != swannybottokens.swannybotid and message.content[0] != "!" and "twitter.com" in message.content or "x.com" in message.content:
             fixedMsg=""
             splitMsg = message.content.split(' ')
             #this is just a message with the twitter link
             if splitMsg.__len__() <2:
-                link=urlparse(message.content)
-                fixedMsg=link.scheme+"://"+"vxtwitter.com"+link.path
+                link = urlparse(message.content)
+                fixedMsg = link.scheme+"://"+"vxtwitter.com"+link.path
                 print(fixedMsg)
             #this is a message with a twitter link in it somewhere
             elif splitMsg.__len__() >=2:
@@ -51,5 +51,5 @@ class twitterfixer_cog(commands.Cog):
 
     @commands.Cog.listener('on_message')
     async def on_message(self,message: discord.Message):
-        if message.guild.id == swannybottokens.swancord:
+        if message.guild.id == swannybottokens.swancord or message.guild.id == swannybottokens.jesuscord:
             await self.twitterfixer(message)
