@@ -56,6 +56,7 @@ class dbhandler():
             else:
                 logging.debug("Database file was not valid! building")
                 self.initialDBSetup()
+            cur.execute('''create table if not exists Special(count int, id int)''')
         except:
             print("An Unknown Error has occurred with the database, rebuilding")
             shutil.copy(self.databaseFile, self.databaseFile + ".prerebuild")
@@ -67,6 +68,7 @@ class dbhandler():
         cur.execute('''create table streamers(TwitchUserID text, LastStreamTime text )''')
         cur.execute('''create table guildStreamers(GuildID text, TwitchUserID text)''')
         cur.execute('''create table guildChannels(GuildID text, ChannelID text)''')
+        cur.execute('''create table Special(count int, id int)''')
         "self.cur.execute('''create table birthdays (GuildID text, UserID text, birthday text)''')"
         self.conn.commit()
         cur.execute('''insert into TEST values ('swannybot')''')
