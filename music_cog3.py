@@ -7,7 +7,6 @@ import swannybottokens
 import wavelink
 
 
-# TODO: Investigate new timeout argument for wavelink.Player.connect()
 # Idle Bot Timeout
 async def timeout(player):
     await asyncio.sleep(600)
@@ -43,17 +42,35 @@ class MusicCog(commands.Cog):
         vc: wavelink.Player = await channel.connect(cls=wavelink.Player)  # type: ignore
         return vc
 
+    # Play Function
+    # Should not handle any technical information about playing, only discord channel facing play.
+    @commands.command(name="play", aliases=["p"])
+    async def play(self, ctx: commands.Context, *, song: str, paused: False):
+        wavelink_player = self.get_current_player(ctx)
+
+        # Try to get the current player. If not found, connect.
+        if wavelink_player is None:
+            wavelink_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+
+        # Begin trying to add song to queue
+        # Declare message that gets printed in reply to user play request
+        discord_message = None
+        temp_return = await self.youtube_url_handler(song, current_player)
+        if temp_return is not None:
+            discord_message = temp_return
+
     # Pause Function
     @commands.command(name="pause", help="Pauses the current song being played")
     async def pause(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
-        if not wavelink_player.is_paused():
-            await wavelink_player.pause()
+        if not wavelink_player.pause(True):
+            await wavelink_player.pause(True)
         else:
-            await wavelink_player.resume()
+            await wavelink_player.pause(False)
 
-    # Get Helper
-    async def get_current_player(self, ctx: commands.Context):
+    # Get Helper, helps generate an instance of the bot whenever a command is called.
+    # Designed for usage in multiple discord guilds.
+    def get_current_player(self, ctx: commands.Context):
         node = wavelink.Pool.get_node()
-        player: wavelink.Player = node.get_player(ctx.guild.id)
+        player = node.get_player(ctx.guild.id)
         return player
