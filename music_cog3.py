@@ -15,8 +15,7 @@ async def timeout(player):
 
 
 class MusicCog(commands.Cog):
-    node = wavelink.Node(uri='127.0.0.1:2333',
-                         password=swannybottokens.WavelinkPassword)
+    node = [wavelink.Node(uri="http://localhost:2333", password="7U;)Y94E@[Q~<KvL")]
 
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -29,8 +28,10 @@ class MusicCog(commands.Cog):
 
     # TODO: I think we need to connect the LavaSrc plugin here?
     async def connect_nodes(self) -> None:
-        await self.bot.wait_until_ready()
-        await wavelink.Pool.connect(client=self.bot, nodes=[self.node])
+       await self.bot.wait_until_ready()
+       await wavelink.Pool.connect(client=self.bot, nodes=self.node)
+
+
 
     # Connect Function Helper
     @commands.command()
