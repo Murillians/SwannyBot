@@ -5,7 +5,7 @@ import datetime
 import discord
 from discord.enums import try_enum
 from discord.ext import commands
-from wavelink.ext import spotify
+#from wavelink.ext import spotify
 
 import swannybottokens
 import wavelink

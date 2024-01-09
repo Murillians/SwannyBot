@@ -8,30 +8,15 @@ import wavelink
 
 
 # Idle Bot Timeout
-async def timeout(player):
-    await asyncio.sleep(600)
-    if player.is_playing() is not True:
-        await player.disconnect()
+
 
 
 class MusicCog(commands.Cog):
-    node = [wavelink.Node(uri="http://localhost:2333", password="7U;)Y94E@[Q~<KvL")]
-
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        bot.loop.create_task(self.connect_nodes())
-
-    # Ready Function
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, node: wavelink.Node):
         print(f'Node <{node}> is ready')
-
-    # TODO: I think we need to connect the LavaSrc plugin here?
-    async def connect_nodes(self) -> None:
-       await self.bot.wait_until_ready()
-       await wavelink.Pool.connect(client=self.bot, nodes=self.node)
-
-
 
     # Connect Function Helper
     @commands.command()
@@ -66,8 +51,8 @@ class MusicCog(commands.Cog):
             return
         try:
             if wavelink_player.playing is False:
-                track = await wavelink_player.queue.get_wait()
-                await wavelink_player.play(track)
+                #track = await wavelink_player.queue.get_wait()
+                await wavelink_player.play(tracks[0])
         except Exception as e:
             print(e)
             pass
@@ -95,3 +80,9 @@ class MusicCog(commands.Cog):
         node = wavelink.Pool.get_node()
         player = node.get_player(ctx.guild.id)
         return player
+    async def cog_load(self):
+        print(f"{self.__class__.__name__} loaded!")
+
+async def setup(bot):
+    # finally, adding the cog to the bot
+    await bot.add_cog(MusicCog(bot=bot))
