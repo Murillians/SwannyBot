@@ -44,23 +44,43 @@ class MusicCog(commands.Cog):
 
     # Play Function
     # Should not handle any technical information about playing, only discord channel facing play.
-    @commands.command(name="play", aliases=["p"])
-    async def play(self, ctx: commands.Context, *, song: str, paused: False):
+    @commands.command(name="tplay", aliases=["tp"])
+    async def play(self, ctx: commands.Context, *, query: str):
         wavelink_player = self.get_current_player(ctx)
 
         # Try to get the current player. If not found, connect.
         if wavelink_player is None:
             wavelink_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
 
-        # Begin trying to add song to queue
-        # Declare message that gets printed in reply to user play request
+        # Begin search for a playable to add to queue.
+        # Declare message that gets printed in reply to user play request.
         discord_message = None
-        temp_return = await self.youtube_url_handler(song, current_player)
-        if temp_return is not None:
-            discord_message = temp_return
+        tracks: wavelink.Search = await wavelink.Playable.search(query)
+        if tracks is not None:
+            discord_message = tracks
+
+        # Send an error if none of the parses could find a song.
+        if tracks is None:
+            await ctx.reply("Sorry, I could not find your song!")
+            return
+        try:
+            if wavelink_player.playing is False:
+                track = await wavelink_player.queue.get_wait()
+                await wavelink_player.play(track)
+        except Exception as e:
+            print(e)
+            pass
+        if isinstance(tracks, wavelink.Playlist):
+            # tracks is a playlist...
+            added: int = await wavelink_player.queue.put_wait(tracks)
+            await ctx.send(f"Added the playlist **`{tracks.name}`** ({added} songs) to the queue.")
+        else:
+            track: wavelink.Playable = tracks[0]
+            await wavelink_player.queue.put_wait(track)
+            await ctx.send(f"Added **`{track}`** to the queue.")
 
     # Pause Function
-    @commands.command(name="pause", help="Pauses the current song being played")
+    @commands.command(name="tpause", help="Pauses the current song being played")
     async def pause(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
         if not wavelink_player.pause(True):
