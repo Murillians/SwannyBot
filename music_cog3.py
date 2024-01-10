@@ -6,14 +6,15 @@ from discord.ext import commands
 import swannybottokens
 import wavelink
 
+
 # TODO: Remove t from all commands and aliases when finished.
 # Idle Bot Timeout
-
 
 
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
+
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, node: wavelink.Node):
         print(f'Node <{node}> is ready')
@@ -51,7 +52,7 @@ class MusicCog(commands.Cog):
             return
         try:
             if wavelink_player.playing is False:
-                #track = await wavelink_player.queue.get_wait()
+                # track = await wavelink_player.queue.get_wait()
                 await wavelink_player.play(tracks[0])
         except Exception as e:
             print(e)
@@ -81,14 +82,55 @@ class MusicCog(commands.Cog):
         if wavelink_player.pause(True):
             await wavelink_player.pause(False)
 
+    # Skip Function
+    @commands.command(name="tskip", aliases=["s"])
+    async def skip(self, ctx, *args):
+        wavelink_player = self.get_current_player(ctx)
+        if wavelink_player is not None and wavelink_player.playing:
+            await wavelink_player.skip()
+
+    # Queue Function
+    @commands.command(name="tqueue", aliases=["tq"])
+    async def queue(self, ctx):
+        wavelink_player = self.get_current_player(ctx)
+        current_queue = wavelink_player.queue
+        autoplay_queue = wavelink_player.auto_queue
+        if wavelink_player.playing:
+            now_playing = ("Now Playing: \n\n" + wavelink_player.current.title + ' - ' +
+                           wavelink_player.current.author + '\n\n')
+        return_value = "Up Next: \n\n"
+        for i in range(1, len(wavelink_player.queue)):
+            if i > 4:
+                break
+            return_value += current_queue[i].title + '\n'
+        if len(autoplay_queue) != 0:
+            return_value += "\nAuto Play Queue: \n\n"
+            for i in range(0, len(autoplay_queue)):
+                if i > 4:
+                    break
+                return_value += autoplay_queue[i].title + ' - ' + autoplay_queue[i].author[0] + '\n'
+        if return_value != "Up Next: \n\n" or wavelink_player.playing:
+            await ctx.send(embed=discord.Embed(
+                color=0x698BE6,
+                title=wavelink_player.current.title,
+                description=wavelink_player.current.author).set_author(
+                name="Now Playing",
+                icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(
+                text=return_value)
+            )
+        else:
+            await ctx.send("No music in the queue.")
+
     # Get Helper, helps generate an instance of the bot whenever a command is called.
     # Designed for usage in multiple discord guilds.
     def get_current_player(self, ctx: commands.Context):
         node = wavelink.Pool.get_node()
         player = node.get_player(ctx.guild.id)
         return player
+
     async def cog_load(self):
         print(f"{self.__class__.__name__} loaded!")
+
 
 async def setup(bot):
     # finally, adding the cog to the bot
