@@ -95,9 +95,6 @@ class MusicCog(commands.Cog):
         wavelink_player = self.get_current_player(ctx)
         current_queue = wavelink_player.queue
         autoplay_queue = wavelink_player.auto_queue
-        if wavelink_player.playing:
-            now_playing = ("Now Playing: \n\n" + wavelink_player.current.title + ' - ' +
-                           wavelink_player.current.author + '\n\n')
         return_value = "Up Next: \n\n"
         for i in range(1, len(wavelink_player.queue)):
             if i > 4:
