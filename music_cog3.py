@@ -6,7 +6,7 @@ from discord.ext import commands
 import swannybottokens
 import wavelink
 
-
+# TODO: Remove t from all commands and aliases when finished.
 # Idle Bot Timeout
 
 
@@ -69,9 +69,16 @@ class MusicCog(commands.Cog):
     @commands.command(name="tpause", help="Pauses the current song being played")
     async def pause(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
-        if not wavelink_player.pause(True):
+        if not await wavelink_player.pause(True):
             await wavelink_player.pause(True)
         else:
+            await wavelink_player.pause(False)
+
+    # Resume Function
+    @commands.command(name="tresume", aliases=["r"])
+    async def resume(self, ctx, *args):
+        wavelink_player = self.get_current_player(ctx)
+        if wavelink_player.pause(True):
             await wavelink_player.pause(False)
 
     # Get Helper, helps generate an instance of the bot whenever a command is called.
