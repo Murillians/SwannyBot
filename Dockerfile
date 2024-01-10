@@ -6,7 +6,8 @@ FROM python:3.12
 RUN mkdir -p /swannybot
 WORKDIR /swannybot
 COPY . .
-RUN apt-get upgrade -y &&\
+RUN apt-get update -y &&\
+    apt-get upgrade -y &&\
     pip install --upgrade pip &&\
     apt-get install -y bash &&\
     apt-get install -y ffmpeg &&\
