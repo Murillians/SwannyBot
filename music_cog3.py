@@ -82,6 +82,7 @@ class MusicCog(commands.Cog):
         if wavelink_player.pause(True):
             await wavelink_player.pause(False)
 
+    # TODO: Skip function needs fixing, currently skips all tracks in a queue, not just one.
     # Skip Function
     @commands.command(name="tskip", aliases=["s"])
     async def skip(self, ctx, *args):
