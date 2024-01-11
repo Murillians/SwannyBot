@@ -89,6 +89,7 @@ class MusicCog(commands.Cog):
         wavelink_player = self.get_current_player(ctx)
         if wavelink_player is not None and wavelink_player.playing:
             await wavelink_player.skip()
+            await ctx.message.add_reaction("\u2705")
 
     # Queue Function
     @commands.command(name="tqueue", aliases=["tq"])
