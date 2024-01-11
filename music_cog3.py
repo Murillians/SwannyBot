@@ -9,7 +9,12 @@ import wavelink
 
 # TODO: Remove t from all commands and aliases when finished.
 # Idle Bot Timeout
-
+# TODO: Remove this function when 3.2.0 releases and enable on_wavelink_inactive_player at bottom.
+# TODO: Then add inactive_timeout time to node parameter in swanny_bot.py
+async def timeout(player: wavelink.Player):
+    await asyncio.sleep(600)
+    if player.playing is not True:
+        await player.disconnect()
 
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -119,6 +124,23 @@ class MusicCog(commands.Cog):
             )
         else:
             await ctx.send("No music in the queue.")
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload):
+        player = payload.player
+        if player.autoplay is True:
+            return
+        current_queue = payload.player.queue
+        if len(current_queue) >= 1:
+            next_song = await current_queue.get_wait()
+            await player.play(next_song)
+        else:
+            await timeout(player)
+
+    # @commands.Cog.listener()
+    # async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
+    #     await player.channel.send(f"The player has been inactive for `{player.inactive_timeout}` seconds. Goodbye!")
+    #     await player.disconnect()
 
     # Get Helper, helps generate an instance of the bot whenever a command is called.
     # Designed for usage in multiple discord guilds.
