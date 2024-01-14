@@ -55,13 +55,8 @@ class MusicCog(commands.Cog):
         if tracks is None:
             await ctx.reply("Sorry, I could not find your song!")
             return
-        try:
-            if wavelink_player.playing is False:
-                # track = await wavelink_player.queue.get_wait()
-                await wavelink_player.play(tracks[0])
-        except Exception as e:
-            print(e)
-            pass
+
+        # Determine the playable
         if isinstance(tracks, wavelink.Playlist):
             # tracks is a playlist...
             added: int = await wavelink_player.queue.put_wait(tracks)
@@ -70,6 +65,24 @@ class MusicCog(commands.Cog):
             track: wavelink.Playable = tracks[0]
             await wavelink_player.queue.put_wait(track)
             await ctx.send(f"Added **`{track}`** to the queue.")
+
+        # Start the player if it is not playing
+        try:
+            if wavelink_player.playing is False:
+                await wavelink_player.play(wavelink_player.queue.get())
+        except Exception as e:
+            print(e)
+            pass
+
+    # Command to add song to an established queue and play it next.
+    # TODO: Need to find method to add song to top of queue.
+    @commands.command(name="tplaynext", aliases=["tpn"])
+    async def play_next(self, ctx: commands.Context, *, query: str):
+        temp_ctx = ctx
+        temp_query = query
+        await self.play(temp_ctx, query=temp_query)
+        wavelink_player = self.get_current_player(ctx)
+        last_added = wavelink_player.queue[-1]
 
     # Pause Function
     @commands.command(name="tpause", help="Pauses the current song being played")
@@ -87,14 +100,13 @@ class MusicCog(commands.Cog):
         if wavelink_player.pause(True):
             await wavelink_player.pause(False)
 
-    # TODO: Skip function needs fixing, currently skips all tracks in a queue, not just one.
     # Skip Function
-    @commands.command(name="tskip", aliases=["s"])
+    @commands.command(name="tskip", aliases=["ts"])
     async def skip(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
         if wavelink_player is not None and wavelink_player.playing:
             await wavelink_player.skip()
-            await ctx.message.add_reaction("\u2705")
+            await ctx.message.add_reaction("<:ThumbsUp:936340890086158356>")
 
     # Queue Function
     @commands.command(name="tqueue", aliases=["tq"])
@@ -103,7 +115,7 @@ class MusicCog(commands.Cog):
         current_queue = wavelink_player.queue
         autoplay_queue = wavelink_player.auto_queue
         return_value = "Up Next: \n\n"
-        for i in range(1, len(wavelink_player.queue)):
+        for i in range(0, len(current_queue)):
             if i > 4:
                 break
             return_value += current_queue[i].title + '\n'
