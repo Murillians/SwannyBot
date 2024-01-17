@@ -9,12 +9,17 @@ import wavelink
 
 # TODO: Remove t from all commands and aliases when finished.
 # Idle Bot Timeout
-# TODO: Remove this function when 3.2.0 releases and enable on_wavelink_inactive_player at bottom.
+# TODO: Remove this timeout function when 3.2.0 releases and enable on_wavelink_inactive_player at bottom.
 # TODO: Then add inactive_timeout time to node parameter in swanny_bot.py
+# TODO: Change timeout back to 600 seconds
+# TODO: Add mario bye bye sound before disconnecting to timeout :)
+# https://www.youtube.com/watch?v=Sx3nXA23jjo
 async def timeout(player: wavelink.Player):
-    await asyncio.sleep(600)
+    await asyncio.sleep(15)
     if player.playing is not True:
         await player.disconnect()
+
+
 
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -56,6 +61,9 @@ class MusicCog(commands.Cog):
             await ctx.reply("Sorry, I could not find your song!")
             return
 
+        # Autoplay Function that runs the queue. Setting the mode to partial will run the queue without recc's.
+        wavelink_player.autoplay = wavelink.AutoPlayMode.partial
+
         # Determine the playable
         if isinstance(tracks, wavelink.Playlist):
             # tracks is a playlist...
@@ -73,6 +81,33 @@ class MusicCog(commands.Cog):
         except Exception as e:
             print(e)
             pass
+
+        # Delete invoked user message
+        try:
+            await ctx.message.delete()
+        except discord.HTTPException:
+            pass
+
+        if not hasattr(wavelink_player, "home"):
+            wavelink_player.home = ctx.channel
+        elif wavelink_player.home != ctx.channel:
+            await ctx.send(
+                f"You can only play songs in {wavelink_player.home.mention}, as the player has already started there.")
+            return
+
+    # Autoplay Toggle Function
+    @commands.command(name="tautoplay", aliases=["tap"])
+    async def autoplay(self, ctx: commands.Context):
+        wavelink_player: wavelink.Player = self.get_current_player(ctx)
+        auto_play = wavelink_player.autoplay
+        if wavelink_player is None:
+            current_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)  # Type:ignore
+        if auto_play.partial:
+            await ctx.reply("Okay, I will start looking for recommended tracks based on your queries!")
+            auto_play = auto_play.enabled
+        else:
+            await ctx.reply("No problem, I will stop looking for recommended tracks!")
+            return auto_play.partial
 
     # Command to add song to an established queue and play it next.
     # TODO: Need to find method to add song to top of queue.
@@ -106,8 +141,11 @@ class MusicCog(commands.Cog):
     @commands.command(name="tskip", aliases=["ts"])
     async def skip(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
+        current_queue = wavelink_player.queue
         if wavelink_player is not None and wavelink_player.playing:
             await wavelink_player.skip()
+            # next_song = current_queue.get()
+            # await wavelink_player.play(next_song)
             await ctx.message.add_reaction("<:ThumbsUp:936340890086158356>")
 
     # Queue Function
@@ -139,13 +177,27 @@ class MusicCog(commands.Cog):
         else:
             await ctx.send("No music in the queue.")
 
+    # Shuffle Queue Function
+    @commands.command(name="tshuffle", aliases=["tshuf"])
+    async def shuffle(self, ctx):
+        wavelink_player = self.get_current_player(ctx)
+        current_queue = wavelink_player.queue
+        autoplay_queue = wavelink_player.auto_queue
+        if wavelink_player.playing:
+            if len(current_queue) or len(autoplay_queue) != 0:
+                current_queue.shuffle()
+                autoplay_queue.shuffle()
+                await ctx.send("The current queue was shuffled!")
+        else:
+            await ctx.send("No music in the queue!")
+
     # Clear Queue Function
     @commands.command(name="tclear", aliases=["tc", "tbin"])
     async def clear(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
         if wavelink_player is not None and wavelink_player.playing:
-            await wavelink_player.stop()
             wavelink_player.queue.clear()
+            await wavelink_player.stop()
         await ctx.send("Music queue cleared")
 
     # Leave Function
@@ -155,29 +207,29 @@ class MusicCog(commands.Cog):
         wavelink_player.queue.clear()
         await wavelink_player.disconnect()
 
-    @commands.Cog.listener()
-    async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload):
-        player = payload.player
-        if player.autoplay is True:
-            return
-        current_queue = payload.player.queue
-        if len(current_queue) >= 1:
-            next_song = await current_queue.get_wait()
-            await player.play(next_song)
-        else:
-            await timeout(player)
-
     # @commands.Cog.listener()
     # async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
     #     await player.channel.send(f"The player has been inactive for `{player.inactive_timeout}` seconds. Goodbye!")
     #     await player.disconnect()
 
-    # Get Helper, helps generate an instance of the bot whenever a command is called.
-    # Designed for usage in multiple discord guilds.
+    async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
+        player: wavelink.Player | None = payload.player
+        if not player:
+            return
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self,payload: wavelink.TrackEndEventPayload):
+        player = payload.player
+        if not player.playing:
+            await timeout(player)
+
     def get_current_player(self, ctx: commands.Context):
         node = wavelink.Pool.get_node()
         player = node.get_player(ctx.guild.id)
         return player
+
+    # Get Helper, helps generate an instance of the bot whenever a command is called.
+    # Designed for usage in multiple discord guilds.
 
     async def cog_load(self):
         print(f"{self.__class__.__name__} loaded!")
