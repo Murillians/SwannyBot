@@ -21,8 +21,8 @@ class MusicCog(commands.Cog):
         self.bot = bot
 
     @commands.Cog.listener()
-    async def on_wavelink_node_ready(self, node: wavelink.Node):
-        print(f'Node <{node}> is ready')
+    async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload) -> None:
+        print(f"Node {payload.node!r} is ready!")
 
     # Connect Function Helper
     @commands.command()
