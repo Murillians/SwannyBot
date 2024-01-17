@@ -82,7 +82,9 @@ class MusicCog(commands.Cog):
         temp_query = query
         await self.play(temp_ctx, query=temp_query)
         wavelink_player = self.get_current_player(ctx)
-        last_added = wavelink_player.queue[-1]
+        current_queue = wavelink_player.queue
+        last_added = current_queue[-1]
+        # No longer put_at_front method, can't insert into queue (class: Playable)
 
     # Pause Function
     @commands.command(name="tpause", help="Pauses the current song being played")
@@ -136,6 +138,22 @@ class MusicCog(commands.Cog):
             )
         else:
             await ctx.send("No music in the queue.")
+
+    # Clear Queue Function
+    @commands.command(name="tclear", aliases=["tc", "tbin"])
+    async def clear(self, ctx, *args):
+        wavelink_player = self.get_current_player(ctx)
+        if wavelink_player is not None and wavelink_player.playing:
+            await wavelink_player.stop()
+            wavelink_player.queue.clear()
+        await ctx.send("Music queue cleared")
+
+    # Leave Function
+    @commands.command(name="tleave", aliases=["tdisconnect", "tl", "td"])
+    async def leave(self, ctx):
+        wavelink_player = self.get_current_player(ctx)
+        wavelink_player.queue.clear()
+        await wavelink_player.disconnect()
 
     @commands.Cog.listener()
     async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload):
