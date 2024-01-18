@@ -100,17 +100,14 @@ class MusicCog(commands.Cog):
     @commands.command(name="tautoplay", aliases=["tap"])
     async def autoplay(self, ctx: commands.Context):
         wavelink_player: wavelink.Player = self.get_current_player(ctx)
-        auto_play = wavelink_player.autoplay
-        print(auto_play)
         if wavelink_player is None:
             wavelink_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)  # Type:ignore
-        if auto_play == wavelink.AutoPlayMode.partial:
+        if wavelink_player.autoplay == wavelink.AutoPlayMode.partial:
             await ctx.reply("Okay, I will start looking for recommended tracks based on your queries!")
-            auto_play = wavelink.AutoPlayMode.enabled
+            wavelink_player.autoplay = wavelink.AutoPlayMode.enabled
         else:
             await ctx.reply("No problem, I will stop looking for recommended tracks!")
-            auto_play = wavelink.AutoPlayMode.partial
-        print(auto_play)
+            wavelink_player.autoplay = wavelink.AutoPlayMode.partial
 
     # Command to add song to an established queue and play it next.
     # TODO: Need to find method to add song to top of queue.
@@ -155,27 +152,32 @@ class MusicCog(commands.Cog):
         current_queue = wavelink_player.queue
         autoplay_queue = wavelink_player.auto_queue
         return_value = "Up Next: \n\n"
-        for i in range(0, len(current_queue)):
-            if i > 4:
-                break
-            return_value += current_queue[i].title + '\n'
-        if len(autoplay_queue) != 0:
-            return_value += "\nAuto Play Queue: \n\n"
-            for i in range(0, len(autoplay_queue)):
+        try:
+            for i in range(0, len(current_queue)):
                 if i > 4:
                     break
-                return_value += autoplay_queue[i].title + ' - ' + autoplay_queue[i].author[0] + '\n'
-        if return_value != "Up Next: \n\n" or wavelink_player.playing:
-            await ctx.send(embed=discord.Embed(
-                color=0x698BE6,
-                title=wavelink_player.current.title,
-                description=wavelink_player.current.author).set_author(
-                name="Now Playing",
-                icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(
-                text=return_value)
-            )
-        else:
-            await ctx.send("No music in the queue.")
+                return_value += current_queue[i].title + '\n'
+            if len(autoplay_queue) != 0:
+                return_value += "\nAuto Play Queue: \n\n"
+                for i in range(0, len(autoplay_queue)):
+                    if i > 4:
+                        break
+                    return_value += autoplay_queue[i].title + ' - ' + autoplay_queue[i].author[0] + '\n'
+            if return_value != "Up Next: \n\n" or wavelink_player.playing:
+                await ctx.send(embed=discord.Embed(
+                    color=0x698BE6,
+                    title=wavelink_player.current.title,
+                    description=wavelink_player.current.author).set_author(
+                    name="Now Playing",
+                    icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(
+                    text=return_value)
+                )
+            else:
+                await ctx.send("Error 2: No music in the queue.")
+        except Exception as e:
+            print(e)
+            await ctx.send("Error 3: No music in the queue.")
+            pass
 
     # Shuffle Queue Function
     @commands.command(name="tshuffle", aliases=["tshuf"])
