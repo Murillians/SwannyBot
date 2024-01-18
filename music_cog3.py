@@ -49,6 +49,10 @@ class MusicCog(commands.Cog):
         if wavelink_player is None:
             wavelink_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
 
+        # Autoplay Function that runs the queue. Setting the mode to partial will run the queue without recc's.
+        if not wavelink_player.playing:
+            wavelink_player.autoplay = wavelink.AutoPlayMode.partial
+
         # Begin search for a playable to add to queue.
         # Declare message that gets printed in reply to user play request.
         discord_message = None
@@ -60,9 +64,6 @@ class MusicCog(commands.Cog):
         if tracks is None:
             await ctx.reply("Sorry, I could not find your song!")
             return
-
-        # Autoplay Function that runs the queue. Setting the mode to partial will run the queue without recc's.
-        wavelink_player.autoplay = wavelink.AutoPlayMode.partial
 
         # Determine the playable
         if isinstance(tracks, wavelink.Playlist):
@@ -100,14 +101,16 @@ class MusicCog(commands.Cog):
     async def autoplay(self, ctx: commands.Context):
         wavelink_player: wavelink.Player = self.get_current_player(ctx)
         auto_play = wavelink_player.autoplay
+        print(auto_play)
         if wavelink_player is None:
-            current_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)  # Type:ignore
-        if auto_play.partial:
+            wavelink_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)  # Type:ignore
+        if auto_play == wavelink.AutoPlayMode.partial:
             await ctx.reply("Okay, I will start looking for recommended tracks based on your queries!")
-            auto_play = auto_play.enabled
+            auto_play = wavelink.AutoPlayMode.enabled
         else:
             await ctx.reply("No problem, I will stop looking for recommended tracks!")
-            return auto_play.partial
+            auto_play = wavelink.AutoPlayMode.partial
+        print(auto_play)
 
     # Command to add song to an established queue and play it next.
     # TODO: Need to find method to add song to top of queue.
@@ -141,11 +144,8 @@ class MusicCog(commands.Cog):
     @commands.command(name="tskip", aliases=["ts"])
     async def skip(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
-        current_queue = wavelink_player.queue
         if wavelink_player is not None and wavelink_player.playing:
             await wavelink_player.skip()
-            # next_song = current_queue.get()
-            # await wavelink_player.play(next_song)
             await ctx.message.add_reaction("<:ThumbsUp:936340890086158356>")
 
     # Queue Function
