@@ -151,32 +151,50 @@ class MusicCog(commands.Cog):
         wavelink_player = self.get_current_player(ctx)
         current_queue = wavelink_player.queue
         autoplay_queue = wavelink_player.auto_queue
-        return_value = "Up Next: \n\n"
+        current_tracks = ""
+        auto_tracks = ""
         try:
-            for i in range(0, len(current_queue)):
+            for i in range(0, len(wavelink_player.queue)):
                 if i > 4:
                     break
-                return_value += current_queue[i].title + '\n'
-            if len(autoplay_queue) != 0:
-                return_value += "\nAuto Play Queue: \n\n"
-                for i in range(0, len(autoplay_queue)):
-                    if i > 4:
-                        break
-                    return_value += autoplay_queue[i].title + ' - ' + autoplay_queue[i].author[0] + '\n'
-            if return_value != "Up Next: \n\n" or wavelink_player.playing:
+                current_tracks += current_queue[i].title + ' /// **' + current_queue[i].author + '**\n'
+            for i in range(0, len(wavelink_player.auto_queue)):
+                if i > 4:
+                    break
+                auto_tracks += autoplay_queue[i].title + ' /// **' + autoplay_queue[i].author + '**\n'
+            if wavelink_player.playing:
                 await ctx.send(embed=discord.Embed(
-                    color=0x698BE6,
                     title=wavelink_player.current.title,
-                    description=wavelink_player.current.author).set_author(
+                    description=wavelink_player.current.author,
+                    color=discord.Color.from_rgb(115, 112, 175))
+                    .set_author(
                     name="Now Playing",
-                    icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(
-                    text=return_value)
-                )
+                    icon_url="https://i.imgur.com/s9gbmVq.png")
+                    .set_thumbnail(
+                    url=wavelink_player.current.artwork)
+                    .add_field(
+                    name="Current Queue:",
+                    value=current_tracks,
+                    inline=False)
+                    .add_field(
+                    name="Auto Queue:",
+                    value=auto_tracks,
+                    inline=False)
+                    .set_footer(
+                    text="Current Queue Length: %s songs" % (len(current_queue))))
             else:
-                await ctx.send("Error 2: No music in the queue.")
+                await ctx.send(embed=discord.Embed(
+                    title="No tracks in the queue!",
+                    description="Add more tracks with **!play** or keep the party going with **!autoplay**",
+                    color=discord.Color.from_rgb(115, 112, 175))
+                    .set_author(
+                    name="Uh Oh...",
+                    icon_url="https://i.imgur.com/s9gbmVq.png")
+                    .set_footer(
+                    text="Swanny Bot will be timing out soon!"))
         except Exception as e:
             print(e)
-            await ctx.send("Error 3: No music in the queue.")
+            await ctx.send("No music in the queue.")
             pass
 
     # Shuffle Queue Function
@@ -222,8 +240,12 @@ class MusicCog(commands.Cog):
     @commands.Cog.listener()
     async def on_wavelink_track_end(self,payload: wavelink.TrackEndEventPayload):
         player = payload.player
-        if not player.playing:
-            await timeout(player)
+        try:
+            if not player.playing:
+                await timeout(player)
+        except Exception as e:
+            print(e)
+            pass
 
     def get_current_player(self, ctx: commands.Context):
         node = wavelink.Pool.get_node()
