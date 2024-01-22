@@ -89,6 +89,7 @@ The bot checks for streams every 60 seconds.
             await ctx.send('No problem sweetheart! :3')
         elif message == 5:
             await ctx.send("You're welcome!")
-
+async def setup(bot):
+    await bot.add_cog(help_cog(bot=bot))
 
 

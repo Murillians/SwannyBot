@@ -200,3 +200,5 @@ class streamer_cog(commands.Cog):
                         returnVal = channelInfo()
                         returnVal.parseUser(userData)
                         return returnVal
+async def setup(bot):
+    await bot.add_cog(streamer_cog(bot=bot))
