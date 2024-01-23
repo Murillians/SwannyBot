@@ -33,9 +33,9 @@ class Swannybot(commands.Bot):
         print(f'Logged in as {self.user} (ID: {self.user.id})')
         print('Bot is ready!')
     async def setup_hook(self) -> None:
-        nodes = [wavelink.Node(uri="http://localhost:2333", password=swannybottokens.WavelinkPassword)]
+        nodes = [wavelink.Node(uri="http://docker:2333", password=swannybottokens.WavelinkPassword)]
         # cache_capacity is EXPERIMENTAL. Turn it off by passing None
-        #await wavelink.Pool.connect(nodes=nodes, client=self, cache_capacity=100)
+        await wavelink.Pool.connect(nodes=nodes, client=self, cache_capacity=100)
         database.dbhandler()
         await self.load_extension("music_cog3")
         await self.load_extension("twitterfixer_cog")
