@@ -145,7 +145,19 @@ class MusicCog(commands.Cog):
             await wavelink_player.skip()
             await ctx.message.add_reaction("<:ThumbsUp:936340890086158356>")
 
-    # Queue Function
+    # Time Embed Helper
+    def timestamp(self, milliseconds):
+        seconds = milliseconds // 1000
+        hour = seconds // 3600
+        seconds %= 3600
+        minutes = seconds // 60
+        seconds %= 60
+        if hour == 0:
+            return "%02d:%02d" % (minutes, seconds)
+        else:
+            return "%02d:%02d:%02d" % (hour, minutes, seconds)
+
+    # Queue Embed Function
     @commands.command(name="tqueue", aliases=["tq"])
     async def queue(self, ctx):
         wavelink_player = self.get_current_player(ctx)
@@ -153,19 +165,38 @@ class MusicCog(commands.Cog):
         autoplay_queue = wavelink_player.auto_queue
         current_tracks = ""
         auto_tracks = ""
+        queue_length = 0
+        autoplay_on = ""
         try:
+            # Current Queue Embed Counter
             for i in range(0, len(wavelink_player.queue)):
                 if i > 4:
                     break
-                current_tracks += current_queue[i].title + ' /// **' + current_queue[i].author + '**\n'
+                current_tracks += ('`' + str(i+1) + '.` ' + current_queue[i].title + ' - **'
+                                   + current_queue[i].author + '**'
+                                   + ' `' + self.timestamp(current_queue[i].length)
+                                   + '`\n')
+            # Current Queue Duration Counter
+            for i in range(0, len(wavelink_player.queue)):
+                queue_length += current_queue[i].length
+            total_duration = self.timestamp(queue_length)
+            # Auto Queue Embed Counter
             for i in range(0, len(wavelink_player.auto_queue)):
                 if i > 4:
                     break
-                auto_tracks += autoplay_queue[i].title + ' /// **' + autoplay_queue[i].author + '**\n'
+                auto_tracks += ('`' + str(i+1) + '.` ' + autoplay_queue[i].title + ' - **'
+                                + autoplay_queue[i].author + '**'
+                                + ' `' + self.timestamp(autoplay_queue[i].length)
+                                + '`\n')
+            # If autoplay is enabled, display the auto queue embed
+            if wavelink_player.autoplay == wavelink.AutoPlayMode.enabled:
+                autoplay_on = "Auto Queue:"
+            # Queue Rich Embed
             if wavelink_player.playing:
                 await ctx.send(embed=discord.Embed(
                     title=wavelink_player.current.title,
-                    description=wavelink_player.current.author,
+                    description=wavelink_player.current.author + ' `'
+                                + self.timestamp(wavelink_player.current.length) + '`',
                     color=discord.Color.from_rgb(115, 112, 175))
                     .set_author(
                     name="Now Playing",
@@ -177,11 +208,11 @@ class MusicCog(commands.Cog):
                     value=current_tracks,
                     inline=False)
                     .add_field(
-                    name="Auto Queue:",
+                    name=autoplay_on,
                     value=auto_tracks,
                     inline=False)
                     .set_footer(
-                    text="Current Queue Length: %s songs" % (len(current_queue))))
+                    text="Current Queue Duration: %s songs, %s" % (len(current_queue), total_duration)))
             else:
                 await ctx.send(embed=discord.Embed(
                     title="No tracks in the queue!",
@@ -191,7 +222,7 @@ class MusicCog(commands.Cog):
                     name="Uh Oh...",
                     icon_url="https://i.imgur.com/s9gbmVq.png")
                     .set_footer(
-                    text="Swanny Bot will be timing out soon!"))
+                    text="The music session will be ending soon!"))
         except Exception as e:
             print(e)
             await ctx.send("No music in the queue.")
