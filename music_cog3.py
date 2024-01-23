@@ -41,7 +41,7 @@ class MusicCog(commands.Cog):
 
     # Play Function
     # Should not handle any technical information about playing, only discord channel facing play.
-    @commands.command(name="tplay", aliases=["tp"])
+    @commands.command(name="play", aliases=["p"])
     async def play(self, ctx: commands.Context, *, query: str):
         wavelink_player = self.get_current_player(ctx)
 
@@ -97,7 +97,7 @@ class MusicCog(commands.Cog):
             return
 
     # Autoplay Toggle Function
-    @commands.command(name="tautoplay", aliases=["tap"])
+    @commands.command(name="autoplay", aliases=["ap"])
     async def autoplay(self, ctx: commands.Context):
         wavelink_player: wavelink.Player = self.get_current_player(ctx)
         if wavelink_player is None:
@@ -111,7 +111,7 @@ class MusicCog(commands.Cog):
 
     # Command to add song to an established queue and play it next.
     # TODO: Need to find method to add song to top of queue.
-    @commands.command(name="tplaynext", aliases=["tpn"])
+    @commands.command(name="playnext", aliases=["pn"])
     async def play_next(self, ctx: commands.Context, *, query: str):
         temp_ctx = ctx
         temp_query = query
@@ -122,7 +122,7 @@ class MusicCog(commands.Cog):
         # No longer put_at_front method, can't insert into queue (class: Playable)
 
     # Pause Function
-    @commands.command(name="tpause", help="Pauses the current song being played")
+    @commands.command(name="pause", help="Pauses the current song being played")
     async def pause(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
         if not await wavelink_player.pause(True):
@@ -131,14 +131,14 @@ class MusicCog(commands.Cog):
             await wavelink_player.pause(False)
 
     # Resume Function
-    @commands.command(name="tresume", aliases=["r"])
+    @commands.command(name="resume", aliases=["r"])
     async def resume(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
         if wavelink_player.pause(True):
             await wavelink_player.pause(False)
 
     # Skip Function
-    @commands.command(name="tskip", aliases=["ts"])
+    @commands.command(name="skip", aliases=["s"])
     async def skip(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
         if wavelink_player is not None and wavelink_player.playing:
@@ -158,7 +158,7 @@ class MusicCog(commands.Cog):
             return "%02d:%02d:%02d" % (hour, minutes, seconds)
 
     # Queue Embed Function
-    @commands.command(name="tqueue", aliases=["tq"])
+    @commands.command(name="queue", aliases=["q"])
     async def queue(self, ctx):
         wavelink_player = self.get_current_player(ctx)
         current_queue = wavelink_player.queue
@@ -229,7 +229,7 @@ class MusicCog(commands.Cog):
             pass
 
     # Shuffle Queue Function
-    @commands.command(name="tshuffle", aliases=["tshuf"])
+    @commands.command(name="shuffle", aliases=["shuf"])
     async def shuffle(self, ctx):
         wavelink_player = self.get_current_player(ctx)
         current_queue = wavelink_player.queue
@@ -243,7 +243,7 @@ class MusicCog(commands.Cog):
             await ctx.send("No music in the queue!")
 
     # Clear Queue Function
-    @commands.command(name="tclear", aliases=["tc", "tbin"])
+    @commands.command(name="clear", aliases=["c", "bin"])
     async def clear(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
         if wavelink_player is not None and wavelink_player.playing:
@@ -252,7 +252,7 @@ class MusicCog(commands.Cog):
         await ctx.send("Music queue cleared")
 
     # Leave Function
-    @commands.command(name="tleave", aliases=["tdisconnect", "tl", "td"])
+    @commands.command(name="leave", aliases=["disconnect", "l", "d"])
     async def leave(self, ctx):
         wavelink_player = self.get_current_player(ctx)
         wavelink_player.queue.clear()
