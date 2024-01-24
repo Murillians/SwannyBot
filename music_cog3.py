@@ -1,24 +1,24 @@
 import asyncio
 import logging
-import datetime
 import discord
 from discord.ext import commands
 import swannybottokens
 import wavelink
 
 
-# TODO: Remove t from all commands and aliases when finished.
-# Idle Bot Timeout
 # TODO: Remove this timeout function when 3.2.0 releases and enable on_wavelink_inactive_player at bottom.
 # TODO: Then add inactive_timeout time to node parameter in swanny_bot.py
-# TODO: Change timeout back to 600 seconds
-# TODO: Add mario bye bye sound before disconnecting to timeout :)
-# https://www.youtube.com/watch?v=Sx3nXA23jjo
-async def timeout(player: wavelink.Player):
-    await asyncio.sleep(15)
-    if player.playing is not True:
-        await player.disconnect()
 
+# Idle Bot Timeout
+async def timeout(player: wavelink.Player):
+    await asyncio.sleep(600)
+    if player.playing is not True:
+        # Swanny Bot says "Bye Bye!" then disconnects
+        tracks: wavelink.Search = await wavelink.Playable.search("https://www.youtube.com/watch?v=Sx3nXA23jjo")
+        track: wavelink.Playable = tracks[0]
+        await player.play(track)
+        await asyncio.sleep(3)
+        await player.disconnect()
 
 
 class MusicCog(commands.Cog):
@@ -49,16 +49,13 @@ class MusicCog(commands.Cog):
         if wavelink_player is None:
             wavelink_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
 
-        # Autoplay Function that runs the queue. Setting the mode to partial will run the queue without recc's.
+        # Autoplay Function that runs the queue.
+        # Setting the mode to partial will run the queue without recommendations.
         if not wavelink_player.playing:
             wavelink_player.autoplay = wavelink.AutoPlayMode.partial
 
         # Begin search for a playable to add to queue.
-        # Declare message that gets printed in reply to user play request.
-        discord_message = None
         tracks: wavelink.Search = await wavelink.Playable.search(query)
-        if tracks is not None:
-            discord_message = tracks
 
         # Send an error if none of the parses could find a song.
         if tracks is None:
@@ -66,14 +63,36 @@ class MusicCog(commands.Cog):
             return
 
         # Determine the playable
+        user = ctx.message.author
         if isinstance(tracks, wavelink.Playlist):
             # tracks is a playlist...
             added: int = await wavelink_player.queue.put_wait(tracks)
-            await ctx.send(f"Added the playlist **`{tracks.name}`** ({added} songs) to the queue.")
+            # await ctx.send(f"{user.mention} added the playlist **`{tracks.name}`** ({added} songs) to the queue.", silent=True)
+            await ctx.send(embed=discord.Embed(
+                title=tracks.name,
+                url=query,
+                description=tracks.author,
+                color=discord.Color.red())
+                .set_author(
+                name=f"{user.display_name} added a playlist to the queue",
+                icon_url=user.avatar)
+                .set_footer(
+                text=f"Duration: {added} songs"
+            ))
         else:
             track: wavelink.Playable = tracks[0]
             await wavelink_player.queue.put_wait(track)
-            await ctx.send(f"Added **`{track}`** to the queue.")
+            # await ctx.send(f"{user.mention} added **`{track}`** to the queue.", silent=True)
+            await ctx.send(embed=discord.Embed(
+                title=track.title,
+                url=track.uri,
+                description=track.author,
+                color=discord.Color.red())
+                .set_author(
+                name=f"{user.display_name} added a song to the queue",
+                icon_url=user.avatar)
+                .set_thumbnail(
+                url=track.artwork))
 
         # Start the player if it is not playing
         try:
@@ -167,6 +186,7 @@ class MusicCog(commands.Cog):
         auto_tracks = ""
         queue_length = 0
         autoplay_on = ""
+        queue_on = ""
         try:
             # Current Queue Embed Counter
             for i in range(0, len(wavelink_player.queue)):
@@ -191,6 +211,9 @@ class MusicCog(commands.Cog):
             # If autoplay is enabled, display the auto queue embed
             if wavelink_player.autoplay == wavelink.AutoPlayMode.enabled:
                 autoplay_on = "Auto Queue:"
+            # If the queue contains tracks, display the current queue embed
+            if len(wavelink_player.queue) != 0:
+                queue_on = "Current Queue:"
             # Queue Rich Embed
             if wavelink_player.playing:
                 await ctx.send(embed=discord.Embed(
@@ -204,7 +227,7 @@ class MusicCog(commands.Cog):
                     .set_thumbnail(
                     url=wavelink_player.current.artwork)
                     .add_field(
-                    name="Current Queue:",
+                    name=queue_on,
                     value=current_tracks,
                     inline=False)
                     .add_field(
