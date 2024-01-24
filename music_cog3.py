@@ -41,7 +41,7 @@ class MusicCog(commands.Cog):
 
     # Play Function
     # Should not handle any technical information about playing, only discord channel facing play.
-    @commands.command(name="play", aliases=["p"])
+    @commands.command(name="play", aliases=["tp"])
     async def play(self, ctx: commands.Context, *, query: str):
         wavelink_player = self.get_current_player(ctx)
 
@@ -92,7 +92,9 @@ class MusicCog(commands.Cog):
                 name=f"{user.display_name} added a song to the queue",
                 icon_url=user.avatar)
                 .set_thumbnail(
-                url=track.artwork))
+                url=track.artwork)
+                .set_footer(
+                text="Song Length: " + self.timestamp(track.length)))
 
         # Start the player if it is not playing
         try:
