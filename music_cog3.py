@@ -41,7 +41,7 @@ class MusicCog(commands.Cog):
 
     # Play Function
     # Should not handle any technical information about playing, only discord channel facing play.
-    @commands.command(name="play", aliases=["tp"])
+    @commands.command(name="play", aliases=["p"])
     async def play(self, ctx: commands.Context, *, query: str):
         wavelink_player = self.get_current_player(ctx)
 
