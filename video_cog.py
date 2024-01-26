@@ -18,7 +18,7 @@ class video_cog(commands.Cog):
     # optimal format for discord IF supported by site
     ydl_opts = {
         'progress_hooks': [error_handler],
-        'format': 'best[vcodec!=h265][ext=mp4]',
+        'format':  'b[vcodec~=\'^(h264|avc)\'] / b[ext=mp4]',
         'outtmpl': '%(id)s.%(ext)s'
     }
     # overall optimal download for transcoding
