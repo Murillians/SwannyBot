@@ -1,41 +1,18 @@
 import asyncio
-import logging
-import datetime
-
 import discord
-from discord.enums import try_enum
 from discord.ext import commands
-from wavelink.ext import spotify
-
-import swannybottokens
 import wavelink
 
 
-async def timeout(player: wavelink.Player):
-    await asyncio.sleep(600)
-    if player.is_playing() is not True:
-        await player.disconnect()
-
-
-class music_cog(commands.Cog):
-    node = wavelink.Node(uri='127.0.0.1:2333', password=swannybottokens.WavelinkPassword)
-
+class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        bot.loop.create_task(self.connect_nodes())
 
     @commands.Cog.listener()
-    async def on_wavelink_node_ready(self, node: wavelink.Node):
-        # Event fired when a node has finished connecting
-        print(f'Node <{node.id}> is ready')
+    async def on_wavelink_node_ready(self, payload: wavelink.NodeReadyEventPayload) -> None:
+        print(f"Node {payload.node!r} is ready!")
 
-    async def connect_nodes(self) ->None:
-        # to connect to wavelink nodes
-        await self.bot.wait_until_ready()
-        await wavelink.NodePool.connect(client=self.bot,nodes=[self.node],spotify=spotify.SpotifyClient(client_id=swannybottokens.SpotifyID,
-                                           client_secret=swannybottokens.SpotifySecret))
-
-    # connect function, mostly helper
+    # Connect Function Helper
     @commands.command()
     async def connect(self, ctx: commands.Context, *, channel: discord.VoiceChannel = None):
         try:
@@ -45,321 +22,287 @@ class music_cog(commands.Cog):
         vc: wavelink.Player = await channel.connect(cls=wavelink.Player)  # type: ignore
         return vc
 
+    # Play Function
+    # Should not handle any technical information about playing, only discord channel facing play.
+    @commands.command(name="play", aliases=["p"])
+    async def play(self, ctx: commands.Context, *, query: str):
+        wavelink_player = self.get_current_player(ctx)
+
+        # Try to get the current player. If not found, connect.
+        if wavelink_player is None:
+            wavelink_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+
+        # Autoplay Function that runs the queue.
+        # Setting the mode to partial will run the queue without recommendations.
+        if not wavelink_player.playing:
+            wavelink_player.autoplay = wavelink.AutoPlayMode.partial
+
+        # Begin search for a playable to add to queue.
+        tracks: wavelink.Search = await wavelink.Playable.search(query)
+
+        # Send an error if none of the parses could find a song.
+        if tracks is None:
+            await ctx.reply("Sorry, I could not find your song!")
+            return
+
+        # Determine the playable
+        user = ctx.message.author
+        if isinstance(tracks, wavelink.Playlist):
+            # tracks is a playlist...
+            added: int = await wavelink_player.queue.put_wait(tracks)
+            await ctx.send(embed=discord.Embed(
+                title=tracks.name,
+                url=query,
+                description=tracks.author,
+                color=discord.Color.red())
+                .set_author(
+                name=f"{user.display_name} added a playlist to the queue",
+                icon_url=user.avatar)
+                .set_footer(
+                text=f"Duration: {added} songs"
+            ))
+        else:
+            track: wavelink.Playable = tracks[0]
+            await wavelink_player.queue.put_wait(track)
+            await ctx.send(embed=discord.Embed(
+                title=track.title,
+                url=track.uri,
+                description=track.author,
+                color=discord.Color.red())
+                .set_author(
+                name=f"{user.display_name} added a song to the queue",
+                icon_url=user.avatar)
+                .set_thumbnail(
+                url=track.artwork)
+                .set_footer(
+                text="Song Length: " + self.timestamp(track.length)))
+
+        # Start the player if it is not playing
+        try:
+            if wavelink_player.playing is False:
+                await wavelink_player.play(wavelink_player.queue.get())
+        except Exception as e:
+            print(e)
+            pass
+
+        # Delete invoked user message
+        try:
+            await ctx.message.delete()
+        except discord.HTTPException:
+            pass
+
+        if not hasattr(wavelink_player, "home"):
+            wavelink_player.home = ctx.channel
+        elif wavelink_player.home != ctx.channel:
+            await ctx.send(
+                f"You can only play songs in {wavelink_player.home.mention}, as the player has already started there.")
+            return
+
+    # Autoplay Toggle Function
+    @commands.command(name="autoplay", aliases=["ap"])
+    async def autoplay(self, ctx: commands.Context):
+        wavelink_player: wavelink.Player = self.get_current_player(ctx)
+        if wavelink_player is None:
+            wavelink_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+        if wavelink_player.autoplay == wavelink.AutoPlayMode.partial:
+            await ctx.reply("Okay, I will start looking for recommended tracks based on your queries!")
+            wavelink_player.autoplay = wavelink.AutoPlayMode.enabled
+        else:
+            await ctx.reply("No problem, I will stop looking for recommended tracks!")
+            wavelink_player.autoplay = wavelink.AutoPlayMode.partial
+
+    # Command to add song to an established queue and play it next.
+    @commands.command(name="playnext", aliases=["pn"])
+    async def play_next(self, ctx: commands.Context, *, query: str):
+        temp_ctx = ctx
+        temp_query = query
+        await self.play(temp_ctx, query=temp_query)
+        wavelink_player = self.get_current_player(ctx)
+        current_queue = wavelink_player.queue
+        last_added = current_queue[-1]
+        current_queue.put_at(0, last_added)
+        current_queue.delete(-1)
+        await ctx.send("This song is playing next! 👆")
+
+    @commands.command(name="remove", aliases=["rm"])
+    async def remove(self, ctx: commands.Context, *, position: int):
+        wavelink_player = self.get_current_player(ctx)
+        current_queue = wavelink_player.queue
+        # The true position of the next song is 0, but end user only sees 1, so subtract by 1.
+        true_position = position - 1
+        if position is None or not int or position <= 0:
+            await ctx.send("You must specify a numeric position in the queue to remove a song. "
+                           "Type **!queue** to see the upcoming positions.")
+        else:
+            current_queue.delete(true_position)
+            await ctx.send(f"The song in position `{position}.` was removed from the queue!")
+
     # Pause Function
     @commands.command(name="pause", help="Pauses the current song being played")
     async def pause(self, ctx, *args):
-        wavelinkPlayer = self.getCurrentPlayer(ctx)
-        if not wavelinkPlayer.is_paused():
-            await wavelinkPlayer.pause()
+        wavelink_player = self.get_current_player(ctx)
+        if not await wavelink_player.pause(True):
+            await wavelink_player.pause(True)
         else:
-            await wavelinkPlayer.resume()
+            await wavelink_player.pause(False)
 
     # Resume Function
-    @commands.command(name="resume", aliases=["r"], help="Resumes playing the current song")
+    @commands.command(name="resume", aliases=["r"])
     async def resume(self, ctx, *args):
-        wavelinkPlayer = self.getCurrentPlayer(ctx)
-        if wavelinkPlayer.is_paused():
-            await wavelinkPlayer.resume()
+        wavelink_player = self.get_current_player(ctx)
+        if wavelink_player.pause(True):
+            await wavelink_player.pause(False)
 
     # Skip Function
-    @commands.command(name="skip", aliases=["s"], help="Skips the song currently playing")
+    @commands.command(name="skip", aliases=["s"])
     async def skip(self, ctx, *args):
-        wavelinkPlayer = self.getCurrentPlayer(ctx)
-        if wavelinkPlayer is not None and wavelinkPlayer.is_playing():
-            await wavelinkPlayer.stop()
+        wavelink_player = self.get_current_player(ctx)
+        if wavelink_player is not None and wavelink_player.playing:
+            await wavelink_player.skip()
+            await ctx.message.add_reaction("<:ThumbsUp:936340890086158356>")
 
-    # Queue Function
-    @commands.command(name="queue", aliases=["q"], help="Displays all the songs currently in queue")
+    # Time Embed Helper
+    def timestamp(self, milliseconds):
+        seconds = milliseconds // 1000
+        hour = seconds // 3600
+        seconds %= 3600
+        minutes = seconds // 60
+        seconds %= 60
+        if hour == 0:
+            return "%02d:%02d" % (minutes, seconds)
+        else:
+            return "%02d:%02d:%02d" % (hour, minutes, seconds)
+
+    # Queue Embed Function
+    @commands.command(name="queue", aliases=["q"])
     async def queue(self, ctx):
-        wavelinkPlayer = self.getCurrentPlayer(ctx)
-        currentQueue = wavelinkPlayer.queue
-        autoplayQueue = wavelinkPlayer.auto_queue
-        nowPlaying= None
-        if wavelinkPlayer.is_playing():
-            nowPlaying = "Now Playing:\n\n"+wavelinkPlayer.current.title + ' - '+wavelinkPlayer.current.author+'\n\n'
-        retval = "Up Next: \n\n"
-        for i in range(0, len(wavelinkPlayer.queue)):
-            if i > 4:
-                break
-            retval += currentQueue[i].title + '\n'
-        if len(autoplayQueue) != 0:
-            retval+="\nAutoPlay Queue: \n\n"
-            for i in range(0,len(autoplayQueue)):
+        wavelink_player = self.get_current_player(ctx)
+        current_queue = wavelink_player.queue
+        autoplay_queue = wavelink_player.auto_queue
+        current_tracks = ""
+        auto_tracks = ""
+        queue_length = 0
+        autoplay_on = ""
+        queue_on = ""
+        try:
+            # Current Queue Embed Counter
+            for i in range(0, len(wavelink_player.queue)):
                 if i > 4:
                     break
-                retval += autoplayQueue[i].title + ' - ' + autoplayQueue[i].artists[0] + '\n'
-        if retval != "Up Next: \n\n" or wavelinkPlayer.is_playing():
-            # await ctx.send(str(nowPlaying + retval))
-            await ctx.send(embed=discord.Embed(color=0x698BE6,title=wavelinkPlayer.current.title, description=wavelinkPlayer.current.author).set_author(name="Now Playing", icon_url="https://i.imgur.com/GGoPoWM.png").set_footer(text=retval))
-        else:
+                current_tracks += ('`' + str(i+1) + '.` ' + current_queue[i].title + ' - **'
+                                   + current_queue[i].author + '**'
+                                   + ' `' + self.timestamp(current_queue[i].length)
+                                   + '`\n')
+            # Current Queue Duration Counter
+            for i in range(0, len(wavelink_player.queue)):
+                queue_length += current_queue[i].length
+            total_duration = self.timestamp(queue_length)
+            # Auto Queue Embed Counter
+            for i in range(0, len(wavelink_player.auto_queue)):
+                if i > 4:
+                    break
+                auto_tracks += ('`' + str(i+1) + '.` ' + autoplay_queue[i].title + ' - **'
+                                + autoplay_queue[i].author + '**'
+                                + ' `' + self.timestamp(autoplay_queue[i].length)
+                                + '`\n')
+            # If autoplay is enabled, display the auto queue embed
+            if wavelink_player.autoplay == wavelink.AutoPlayMode.enabled:
+                autoplay_on = "Auto Queue:"
+            # If the queue contains tracks, display the current queue embed
+            if len(wavelink_player.queue) != 0:
+                queue_on = "Current Queue:"
+            # Queue Rich Embed
+            if wavelink_player.playing:
+                await ctx.send(embed=discord.Embed(
+                    title=wavelink_player.current.title,
+                    description=wavelink_player.current.author + ' `'
+                                + self.timestamp(wavelink_player.current.length) + '`',
+                    color=discord.Color.from_rgb(115, 112, 175))
+                    .set_author(
+                    name="Now Playing",
+                    icon_url="https://i.imgur.com/s9gbmVq.png")
+                    .set_thumbnail(
+                    url=wavelink_player.current.artwork)
+                    .add_field(
+                    name=queue_on,
+                    value=current_tracks,
+                    inline=False)
+                    .add_field(
+                    name=autoplay_on,
+                    value=auto_tracks,
+                    inline=False)
+                    .set_footer(
+                    text="Current Queue Duration: %s songs, %s" % (len(current_queue), total_duration)))
+            else:
+                await ctx.send(embed=discord.Embed(
+                    title="No tracks in the queue!",
+                    description="Add more tracks with **!play** or keep the party going with **!autoplay**",
+                    color=discord.Color.from_rgb(115, 112, 175))
+                    .set_author(
+                    name="Uh Oh...",
+                    icon_url="https://i.imgur.com/s9gbmVq.png")
+                    .set_footer(
+                    text="The music session will be ending soon!"))
+        except Exception as e:
+            print(e)
             await ctx.send("No music in the queue.")
+            pass
 
     # Shuffle Queue Function
-    @commands.command(name="shuffle", aliases=["shuf"], help="Shuffles the current queue")
+    @commands.command(name="shuffle", aliases=["shuf"])
     async def shuffle(self, ctx):
-        wavelinkPlayer = self.getCurrentPlayer(ctx)
-        currentQueue = wavelinkPlayer.queue
-        autoplayQueue = wavelinkPlayer.auto_queue
-        if wavelinkPlayer.is_playing():
-            if len(currentQueue) or len(autoplayQueue) != 0:
-                currentQueue.shuffle()
-                autoplayQueue.shuffle()
+        wavelink_player = self.get_current_player(ctx)
+        current_queue = wavelink_player.queue
+        autoplay_queue = wavelink_player.auto_queue
+        if wavelink_player.playing:
+            if len(current_queue) or len(autoplay_queue) != 0:
+                current_queue.shuffle()
+                autoplay_queue.shuffle()
                 await ctx.send("The current queue was shuffled!")
         else:
             await ctx.send("No music in the queue!")
 
-
     # Clear Queue Function
-    @commands.command(name="clear", aliases=["c", "bin"], help="Stops the current song and clears the queue")
+    @commands.command(name="clear", aliases=["c", "bin"])
     async def clear(self, ctx, *args):
-        wavelinkPlayer = self.getCurrentPlayer(ctx)
-        if wavelinkPlayer is not None and wavelinkPlayer.is_playing():
-            await wavelinkPlayer.stop()
-            wavelinkPlayer.queue.clear()
+        wavelink_player = self.get_current_player(ctx)
+        if wavelink_player is not None and wavelink_player.playing:
+            wavelink_player.queue.clear()
+            await wavelink_player.stop()
         await ctx.send("Music queue cleared")
 
     # Leave Function
-    @commands.command(name="leave", aliases=["disconnect", "l", "d"], help="Kick the bot from the voice channel")
+    @commands.command(name="leave", aliases=["disconnect", "l", "d"])
     async def leave(self, ctx):
-        wavelinkPlayer = self.getCurrentPlayer(ctx)
-        wavelinkPlayer.queue.clear()
-        await wavelinkPlayer.disconnect()
-
-    #command to add song to play next in queue, skips all other songs in queue
-    @commands.command(name = "playnext", aliases = ["pn"], help = "Add a song to be next in queue")
-    async def playNext(self, ctx: commands.Context, *, song: str):
-        tempCtx=ctx
-        tempSong=song
-        await self.play(tempCtx,song=tempSong)
-        player=self.getCurrentPlayer(ctx)
-        lastAdded=player.queue.pop()
-        player.queue.put_at_front(lastAdded)
-
-    # play command, should not handle any technical information about playing, only discord channel facing play
-    @commands.command(name="play", aliases=["p"], help="Play music! Can handle Spotify, YouTube, and Soundcloud links")
-    # Play Function
-    async def play(self, ctx: commands.Context, *, song: str):
-        currentGuild = ctx.author.voice.channel.guild.id
-        currentPlayer = self.getCurrentPlayer(ctx)
-
-        # try to get current player, if not found, connect
-        if currentPlayer is None:
-            currentPlayer: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player) #type: ignore
-
-        # begin trying to add song to queue
-        # what message that gets printed in reply to user play request
-        discordMessage = None
-        # temp variable to hold messages/check for errors
-        tempReturn = None
-        tempReturn = await self.spotifyUrlHandler(song, currentPlayer)
-        if tempReturn is not None:
-            discordMessage = tempReturn
-
-        # check discordMessage to see if we already found a song
-        if discordMessage is None:
-            tempReturn = await self.soundcloudUrlHandler(song, currentPlayer)
-            if tempReturn is not None:
-                discordMessage = tempReturn
-
-        if discordMessage is None:
-            tempReturn = await self.youtubeUrlHandler(song, currentPlayer)
-            if tempReturn is not None:
-                discordMessage = tempReturn
-
-        # send error if none of the parsers could find a song
-        if tempReturn is None:
-            await ctx.reply("Unable to find your song!")
-            return
-        try:
-            if currentPlayer.is_playing() is False:
-                track = await currentPlayer.queue.get_wait()
-                await currentPlayer.play(track)
-        except Exception as e:
-            print(e)
-            pass
-        if isinstance(discordMessage, discord.Embed) is True:
-            await ctx.send(embed=discordMessage)
-            return
-        await ctx.reply(discordMessage)
-
-    @commands.command(name="autoplay", aliases=["ap"], help="Turn AutoPlay off or on")
-    async def autoplay(self, ctx: commands.Context):
-        currentPlayer: wavelink.Player = self.getCurrentPlayer(ctx)
-        if currentPlayer is None:
-            currentPlayer: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player) #type: ignore
-        if currentPlayer.autoplay is False:
-            currentPlayer.autoplay = True
-            await ctx.reply("AutoPlay has been ENABLED for Spotify tracks!")
-        else:
-            currentPlayer.autoplay = False
-            await ctx.reply("AutoPlay has been DISABLED for Spotify tracks!")
-
-    def richEmbed(self, color, title, artists, images, service, song_length):
-        return discord.Embed(
-            # Color in hexicode
-            color=color,
-            # Title of track, typically track.name
-            title=title,
-            # Remaining information, typically track.artists, track.images, "Spotify" or "Youtube", and datetime.timedelta(milliseconds=track.length)
-            description=artists).set_thumbnail(url=images).set_author(name=service + " track added to queue").add_field(name="Song Length", value=song_length)
-
-
-    # Helper function to decode Spotify tracks, will queue up the appropriate track/playlist/album/artist and return a formatted message
-    # has to search the spotify url and load from youtube
-    async def spotifyUrlHandler(self, spotifyLink:str, wavelinkPlayer):
-        formattedReturnMessage = None
-        decodedUrl = spotify.decode_url(spotifyLink)
-        queueError = None
-        if decodedUrl is not None:
-            if decodedUrl['type'] is spotify.SpotifySearchType.track:
-                track = await spotify.SpotifyTrack.search(query=spotifyLink)
-                track=track[0]
-                queueError = await self.addTrackToQueue(wavelinkPlayer, track)
-                if queueError is None:
-                    #formattedReturnMessage = str(track.title) + " Has been added to the queue"
-                    formattedReturnMessage = self.richEmbed(0x00DB00,track.name,track.artists[0],track.images[0],"Spotify",datetime.timedelta(milliseconds=track.length))
-                else:
-                    return queueError
-            elif decodedUrl['type'] is spotify.SpotifySearchType.album:
-                trackCount = 0
-                # album detected, add every track in that playlist to the queue.
-                async for track in spotify.SpotifyTrack.iterator(query=decodedUrl['id'],
-                                                                 type=spotify.SpotifySearchType.album):
-                    queueError = await self.addTrackToQueue(wavelinkPlayer, track)
-                    if queueError is None:
-                        trackCount += 1
-                        pass
-                    else:
-                        return discord.Message("Could not add songs past " + track.title + " in that album, sorry lol")
-                formattedReturnMessage = str(trackCount) + " songs added to queue!"
-            elif decodedUrl['type'] is spotify.SpotifySearchType.playlist:
-                trackCount = 0
-                playtime = 0
-                # playlist detected, add every track in that playlist to the queue.
-                async for track in spotify.SpotifyTrack.iterator(query=decodedUrl['id'],
-                                                                 type=spotify.SpotifySearchType.playlist):
-                    queueError = await self.addTrackToQueue(wavelinkPlayer, track)
-                    if queueError is None:
-                        trackCount += 1
-                        playtime = playtime + track.length
-                        pass
-                    else:
-                        return discord.Message(
-                            "Could not add songs past " + track.title + " in that playlist, sorry lol")
-                formattedReturnMessage = discord.Embed(color=0x00DB00, title=str(trackCount) + " songs added to queue!").add_field(name="Total Playtime",
-                           value=datetime.timedelta(milliseconds=playtime))
-            else:
-                formattedReturnMessage = discord.Message("SwannyBot is unable to play this type of Spotify URL")
-        return formattedReturnMessage
-
-    async def youtubeUrlHandler(self, inputUrl, wavelinkPlayer):
-        formattedReturnMessage = None
-        track = None
-        # YouTube Playlist Handler
-        try:
-            playlist = await wavelink.YouTubePlaylist.search(inputUrl)
-            trackCount = 0
-            playtime = 0
-            for track in playlist.tracks:
-                queueError = await self.addTrackToQueue(wavelinkPlayer, track)
-                if queueError is None:
-                    trackCount += 1
-                    playtime = playtime + track.length
-                    pass
-                else:
-                    return discord.Message("Could not add songs past " + track.title + " in that playlist, sorry lol")
-            formattedReturnMessage = discord.Embed(color=0xCC0000, title=str(trackCount) + " songs added to queue!").add_field(name="Total Playtime",value=datetime.timedelta(milliseconds=playtime))
-        except:
-            pass
-        # YouTube song/url Handler
-        if formattedReturnMessage is None:
-            # try to search a youtube URL first
-            trackList = await wavelink.NodePool.get_node().get_tracks(query=inputUrl, cls=wavelink.YouTubeTrack)
-            # if empty, search youtube, otherwise get the track
-            if len(trackList) == 0:
-                # not a youtube url, go search the song and give back the first result
-                track = await wavelink.YouTubeTrack.search(inputUrl)
-                track=track[0]
-            else:
-                track = trackList[0]
-            queueError = await self.addTrackToQueue(wavelinkPlayer, track)
-            if queueError is None:
-                formattedReturnMessage = self.richEmbed(0xCC0000,track.title,track.author,track.thumbnail,"Youtube",str(datetime.timedelta(milliseconds=track.length)))
-            else:
-                return queueError
-        return formattedReturnMessage
-
-        # YouTube Music Handler
-        if formattedReturnMessage is None:
-            try:
-                track = await wavelink.YouTubeMusicTrack.search(inputUrl)
-                track = track[0]
-                queueError = await self.addTrackToQueue(wavelinkPlayer, track)
-                if queueError is None:
-                    formattedReturnMessage = discord.Embed(
-                        title=track.title + " added to queue",
-                        url=track.uri
-                    ).set_image(url=await track.fetch_thumbnail())
-                else:
-                    return queueError
-                return formattedReturnMessage
-            except Exception as e:
-                pass
-
-    async def soundcloudUrlHandler(self, song, wavelinkPlayer):
-        return None
-
-    # helper that adds track to the END of the queue
-    async def addTrackToQueue(self, wavelinkPlayer: wavelink.Player, track):
-        #UGLY but you HAVE to do a play w/ populate= true for autoplay to work
-        #TODO: come back when this feature has been hashed out in Wavelink and make tidier
-        if type(track) is spotify.SpotifyTrack and wavelinkPlayer.autoplay is True and wavelinkPlayer.is_playing() is False:
-            await wavelinkPlayer.play(track,populate=True)
-            return None
-        try:
-            await wavelinkPlayer.queue.put_wait(track)
-        except Exception as e:
-            logging.error(e)
-            return "Unspecified error, check error logs"
-        return None
+        wavelink_player = self.get_current_player(ctx)
+        wavelink_player.queue.clear()
+        await wavelink_player.disconnect()
 
     @commands.Cog.listener()
-    async def on_wavelink_track_end(self,payload: wavelink.TrackEventPayload):
-        player=payload.player
-        if player.autoplay is True:
-            return
-        currentQueue = payload.player.queue
-        if currentQueue.count >= 1:
-            nextSong = await currentQueue.get_wait()
-            await player.play(nextSong)
-        else:
-            await timeout(player)
+    async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
+        # Swanny Bot says "Bye Bye!" then disconnects
+        tracks: wavelink.Search = await wavelink.Playable.search("https://www.youtube.com/watch?v=Sx3nXA23jjo")
+        track: wavelink.Playable = tracks[0]
+        await player.play(track)
+        await asyncio.sleep(3)
+        await player.disconnect()
 
-    # helper function to get
-    def getCurrentPlayer(self, ctx: commands.Context):
-        node = wavelink.NodePool.get_node()
+    async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
+        player: wavelink.Player | None = payload.player
+        if not player:
+            return
+
+    # Get Helper, helps generate an instance of the bot whenever a command is called.
+    # Designed for usage in multiple discord guilds.
+    def get_current_player(self, ctx: commands.Context):
+        node = wavelink.Pool.get_node()
         player = node.get_player(ctx.guild.id)
         return player
 
-    #@commands.Cog.listener()
-    #async def on_wavelink_websocket_closed(self,payload: wavelink.WebsocketClosedPayload):
-        #logging.info("wavelink websocket closed, Reason: " + payload.reason)
+    async def cog_load(self):
+        print(f"{self.__class__.__name__} loaded!")
 
-    #@commands.Cog.listener()
-    #async def on_wavelink_track_exception(self,payload: wavelink.TrackEventPayload):
-        #logging.info("wavelink track error, Reason: " + payload.reason + " track: " + payload.track.title)
 
-    #@commands.Cog.listener()
-    #async def on_wavelink_track_stuck(self,payload: wavelink.TrackEventPayload):
-        #logging.info("wavelink track stuck, Reason:: " + payload.reason + " track: " + payload.track.title)
-
-    @commands.command(name="bailiff")
-    async def bailiff(self, ctx: commands.Context):
-        player= self.getCurrentPlayer(ctx)
-        if player:
-            baliff = await wavelink.NodePool.get_node().get_tracks(query="https://youtu.be/W9PtKiymAy4", cls=wavelink.YouTubeTrack)
-            baliff = baliff[0]
-            player.queue.put_at_front(baliff)
-            await player.stop()
-        else:
-            await self.play(ctx,song="https://youtu.be/W9PtKiymAy4")
+async def setup(bot):
+    # finally, adding the cog to the bot
+    await bot.add_cog(MusicCog(bot=bot))

@@ -19,6 +19,7 @@ pipeline {
           withCredentials([file(credentialsId: 'applicationyml', variable: 'SECRET')]) {
             sh('cp \$SECRET ./wavelink/application.yml')
           }
+          sh ("chmod -R +rxw .")
       }
       }
         stage('Build docker image'){
