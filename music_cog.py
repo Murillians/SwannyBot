@@ -98,6 +98,8 @@ class MusicCog(commands.Cog):
                 f"You can only play songs in {wavelink_player.home.mention}, as the player has already started there.")
             return
 
+        await self.empty_channel(ctx)
+
     # Autoplay Toggle Function
     @commands.command(name="autoplay", aliases=["ap"])
     async def autoplay(self, ctx: commands.Context):
@@ -286,6 +288,21 @@ class MusicCog(commands.Cog):
         await player.play(track)
         await asyncio.sleep(3)
         await player.disconnect()
+
+    # Check every 10 minutes while playing if Swanny Bot is the only member in connected voice channel
+    # Note: If nothing is playing, inactive_player will disconnect instead
+    async def empty_channel(self, ctx: commands.Context) -> None:
+        current_voice_channel = ctx.author.voice.channel
+        wavelink_player: wavelink.Player = self.get_current_player(ctx)
+        while wavelink_player.playing:
+            await asyncio.sleep(600)
+            try:
+                if current_voice_channel.members[0].bot and len(current_voice_channel.members) == 1:
+                    await wavelink_player.disconnect()
+                    break
+            except Exception as e:
+                print(e)
+                pass
 
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
         player: wavelink.Player | None = payload.player
