@@ -28,9 +28,14 @@ class video_cog(commands.Cog):
 
 
     @commands.command(name="download", aliases=["dl"])
-    async def download(self, ctx: commands.Context, arg1):
+    async def download(self, ctx: commands.Context):
         ydl = yt_dlp.YoutubeDL(self.ydl_opts)
-        link = str(arg1)
+        # Split message up via spaces and parse for link
+        link = ""
+        split_message = ctx.message.content.split(' ')
+        for i in split_message:
+            if i.startswith('https://'):
+                link = i
         info = None
         remux = False
         inputfile=""
