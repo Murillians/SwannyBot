@@ -271,7 +271,7 @@ class MusicCog(commands.Cog):
         if wavelink_player is not None and wavelink_player.playing:
             wavelink_player.queue.clear()
             await wavelink_player.stop()
-        await ctx.send("Music queue cleared")
+            await ctx.send("The music queue was cleared!")
 
     # Leave Function
     @commands.command(name="leave", aliases=["disconnect", "l", "d"])
@@ -303,6 +303,21 @@ class MusicCog(commands.Cog):
             except Exception as e:
                 print(e)
                 pass
+
+    # Check every 5 minutes while playing if Swanny Bot is the only member in connected voice channel
+    # If nothing is playing, inactive_player will disconnect instead
+    @commands.Cog.listener()
+    async def empty_channel(self, player: wavelink.Player, ctx: commands.Context) -> None:
+        current_voice_channel = ctx.author.voice.channel
+        await asyncio.sleep(5)
+        if player.playing:
+            print(current_voice_channel.id)
+            print(current_voice_channel.name)
+            print(current_voice_channel.members)
+            print(self.bot.user.id)
+            if current_voice_channel.members == self.bot.get_user(id(self)):
+                await player.disconnect()
+
 
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
         player: wavelink.Player | None = payload.player
