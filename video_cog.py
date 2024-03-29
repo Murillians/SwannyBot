@@ -32,13 +32,14 @@ class video_cog(commands.Cog):
         ydl = yt_dlp.YoutubeDL(self.ydl_opts)
         # Split message up via spaces and parse for link
         link = ""
-        split_message = ctx.message.content.split(' ')
+        split_message = ctx.message.content.split()
         for i in split_message:
             if i.startswith('https://'):
                 link = i
         info = None
         remux = False
         inputfile=""
+        error_code = None
         try:
             info = ydl.extract_info(link, download=False)
             # if there are subentries in the pulled json info, grab the first one as it is the desired quote tweet
@@ -52,7 +53,7 @@ class video_cog(commands.Cog):
             try:
                 inputfile = (info['id'] + "." + info['ext'])
                 error_code = ydl.download(link)
-            except BaseException or error_code:
+            except BaseException or error_code is not None:
                 await ctx.reply("Was unable to download this file, double check your link and try again")
                 return
         if remux is True:
