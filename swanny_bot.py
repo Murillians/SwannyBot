@@ -9,6 +9,7 @@ from video_cog import video_cog
 # from rep_cog import rep_cog
 from twitterfixer_cog import twitterfixer_cog
 from music_cog import MusicCog
+from discord_fixer import DiscordFixer_cog
 import database
 import wavelink
 
@@ -43,6 +44,7 @@ class Swannybot(commands.Bot):
         await self.load_extension("help_cog")
         await self.load_extension("streamer_cog")
         await self.load_extension("special_cog")
+        await self.load_extension("discord_fixer")
 
 swannybot :Swannybot= Swannybot()
 async def main():
