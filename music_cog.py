@@ -26,6 +26,7 @@ class MusicCog(commands.Cog):
     # Should not handle any technical information about playing, only discord channel facing play.
     @commands.command(name="play", aliases=["p"])
     async def play(self, ctx: commands.Context, *, query: str):
+
         wavelink_player = self.get_current_player(ctx)
 
         # Try to get the current player. If not found, connect.
@@ -45,7 +46,7 @@ class MusicCog(commands.Cog):
             await ctx.reply("Sorry, I could not find your song!")
             return
 
-        # Determine the playable
+        # Determine the playable and send an embedded message
         user = ctx.message.author
         if isinstance(tracks, wavelink.Playlist):
             # tracks is a playlist...
@@ -98,6 +99,10 @@ class MusicCog(commands.Cog):
                 f"You can only play songs in {wavelink_player.home.mention}, as the player has already started there.")
             return
 
+        if wavelink_player.autoplay == wavelink.AutoPlayMode.enabled:
+            await wavelink_player.play(tracks[0], populate=True)
+            await ctx.send('The Auto Queue was updated!')
+
         await self.empty_channel(ctx)
 
     # Autoplay Toggle Function
@@ -113,18 +118,44 @@ class MusicCog(commands.Cog):
             await ctx.reply("No problem, I will stop looking for recommended tracks!")
             wavelink_player.autoplay = wavelink.AutoPlayMode.partial
 
-    # Command to add song to an established queue and play it next.
+    # Command to add song to an established queue and play it next
     @commands.command(name="playnext", aliases=["pn"])
     async def play_next(self, ctx: commands.Context, *, query: str):
-        temp_ctx = ctx
-        temp_query = query
-        await self.play(temp_ctx, query=temp_query)
         wavelink_player = self.get_current_player(ctx)
-        current_queue = wavelink_player.queue
-        last_added = current_queue[-1]
-        current_queue.put_at(0, last_added)
-        current_queue.delete(-1)
-        await ctx.send("This song is playing next! 👆")
+
+        # Search for playable SONG, does NOT play playlists next
+        try:
+            tracks: wavelink.Search = await wavelink.Playable.search(query)
+            track: wavelink.Playable = tracks[0]
+
+            # Embed track
+            user = ctx.message.author
+            await ctx.send(embed=discord.Embed(
+                title=track.title,
+                url=track.uri,
+                description=track.author,
+                color=discord.Color.red())
+                .set_author(
+                name=f"{user.display_name} added a song to the queue",
+                icon_url=user.avatar)
+                .set_thumbnail(
+                url=track.artwork)
+                .set_footer(
+                text="Song Length: " + self.timestamp(track.length)))
+
+            # Delete invoked user message
+            try:
+                await ctx.message.delete()
+            except discord.HTTPException:
+                pass
+
+            # Put track at position 0 (first) in established queue
+            wavelink_player.queue.put_at(0, track)
+            await ctx.send("This song is playing next! 👆")
+
+        except Exception as e:
+            await ctx.send("You must have a __queue__ going in order to play something next! "
+                           "Start a queue with **!p** first.")
 
     @commands.command(name="remove", aliases=["rm"])
     async def remove(self, ctx: commands.Context, *, position: int):
@@ -218,7 +249,7 @@ class MusicCog(commands.Cog):
                 await ctx.send(embed=discord.Embed(
                     title=wavelink_player.current.title,
                     description=wavelink_player.current.author + ' `'
-                                + self.timestamp(wavelink_player.current.length) + '`',
+                    + self.timestamp(wavelink_player.current.length) + '`',
                     color=discord.Color.from_rgb(115, 112, 175))
                     .set_author(
                     name="Now Playing",
