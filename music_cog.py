@@ -1,8 +1,12 @@
 import asyncio
+import datetime
+
 import discord
 from discord.ext import commands
-import wavelink
 
+import swannybottokens
+import wavelink
+import special_cog
 
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -25,13 +29,25 @@ class MusicCog(commands.Cog):
     # Play Function
     # Should not handle any technical information about playing, only discord channel facing play.
     @commands.command(name="play", aliases=["p"])
-    async def play(self, ctx: commands.Context, *, query: str):
+    async def play(self, ctx: commands.Context, *, query: str) -> wavelink.Playable:
 
         wavelink_player = self.get_current_player(ctx)
-
+        if ctx.author.voice is None:
+            spray_temp = await ctx.send(f"{ctx.author.mention} tried to play something without being connected to voice chat! 🤡")
+            minute = datetime.datetime.now().astimezone()
+            minute = minute + datetime.timedelta(minutes=5)
+            await ctx.author.timeout(minute)
+            return
         # Try to get the current player. If not found, connect.
         if wavelink_player is None:
             wavelink_player: wavelink.Player = await ctx.author.voice.channel.connect(cls=wavelink.Player)
+
+        if not hasattr(wavelink_player, "home"):
+            wavelink_player.home = ctx.channel
+        elif wavelink_player.home != ctx.channel:
+            await ctx.send(
+                f"You can only play songs in {wavelink_player.home.mention}, as the player has already started there.")
+            return
 
         # Autoplay Function that runs the queue.
         # Setting the mode to partial will run the queue without recommendations.
@@ -92,18 +108,7 @@ class MusicCog(commands.Cog):
         except discord.HTTPException:
             pass
 
-        if not hasattr(wavelink_player, "home"):
-            wavelink_player.home = ctx.channel
-        elif wavelink_player.home != ctx.channel:
-            await ctx.send(
-                f"You can only play songs in {wavelink_player.home.mention}, as the player has already started there.")
-            return
-
-        if wavelink_player.autoplay == wavelink.AutoPlayMode.enabled:
-            await wavelink_player.play(tracks[0], populate=True)
-            await ctx.send('The Auto Queue was updated!')
-
-        await self.empty_channel(ctx)
+        return tracks
 
     # Autoplay Toggle Function
     @commands.command(name="autoplay", aliases=["ap"])
@@ -121,41 +126,25 @@ class MusicCog(commands.Cog):
     # Command to add song to an established queue and play it next
     @commands.command(name="playnext", aliases=["pn"])
     async def play_next(self, ctx: commands.Context, *, query: str):
-        wavelink_player = self.get_current_player(ctx)
-
-        # Search for playable SONG, does NOT play playlists next
         try:
-            tracks: wavelink.Search = await wavelink.Playable.search(query)
-            track: wavelink.Playable = tracks[0]
-
-            # Embed track
-            user = ctx.message.author
-            await ctx.send(embed=discord.Embed(
-                title=track.title,
-                url=track.uri,
-                description=track.author,
-                color=discord.Color.red())
-                .set_author(
-                name=f"{user.display_name} added a song to the queue",
-                icon_url=user.avatar)
-                .set_thumbnail(
-                url=track.artwork)
-                .set_footer(
-                text="Song Length: " + self.timestamp(track.length)))
-
-            # Delete invoked user message
-            try:
-                await ctx.message.delete()
-            except discord.HTTPException:
-                pass
-
-            # Put track at position 0 (first) in established queue
-            wavelink_player.queue.put_at(0, track)
-            await ctx.send("This song is playing next! 👆")
-
+            tracks=await self.play(ctx,query=query)
+            if tracks is None:
+                return
+            tracks_added_count = len(tracks)
+            wavelink_player = self.get_current_player(ctx)
+            queue = wavelink_player.queue
+            if len(queue)>1:
+                for i in range(tracks_added_count):
+                    tmp = queue.get_at(len(queue)-1)
+                    queue.put_at(0, tmp)
+            if len(tracks) >1:
+                await ctx.send("Those songs are playing next! 👆")
+            else:
+                await ctx.send("This song is playing next! 👆")
         except Exception as e:
             await ctx.send("You must have a __queue__ going in order to play something next! "
                            "Start a queue with **!p** first.")
+
 
     @commands.command(name="remove", aliases=["rm"])
     async def remove(self, ctx: commands.Context, *, position: int):
@@ -322,23 +311,34 @@ class MusicCog(commands.Cog):
 
     # Check every 10 minutes while playing if Swanny Bot is the only member in connected voice channel
     # Note: If nothing is playing, inactive_player will disconnect instead
-    async def empty_channel(self, ctx: commands.Context) -> None:
-        current_voice_channel = ctx.author.voice.channel
-        wavelink_player: wavelink.Player = self.get_current_player(ctx)
+    async def empty_channel(self, player: wavelink.Player) -> None:
+        wavelink_player: wavelink.Player = player
         while wavelink_player.playing:
             await asyncio.sleep(600)
             try:
-                if current_voice_channel.members[0].bot and len(current_voice_channel.members) == 1:
-                    await wavelink_player.disconnect()
-                    break
+                current_guild = wavelink_player.guild
+                voice_channels = current_guild.voice_channels
+                for channel in voice_channels:
+                    if (len(channel.members) == 1 and channel.members[0].id == swannybottokens.swannybotid):
+                        await wavelink_player.disconnect()
+                        break
             except Exception as e:
                 print(e)
                 pass
 
+    @commands.Cog.listener()
     async def on_wavelink_track_start(self, payload: wavelink.TrackStartEventPayload) -> None:
         player: wavelink.Player | None = payload.player
         if not player:
             return
+        await self.empty_channel(payload.player)
+
+    @commands.Cog.listener()
+    async def on_wavelink_track_end(self,payload: wavelink.TrackEndEventPayload):
+        player: wavelink.Player | None = payload.player
+        if not player:
+            return
+        await self.empty_channel(payload.player)
 
     # Get Helper, helps generate an instance of the bot whenever a command is called.
     # Designed for usage in multiple discord guilds.
