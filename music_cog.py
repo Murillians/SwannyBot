@@ -8,6 +8,7 @@ import swannybottokens
 import wavelink
 import special_cog
 
+
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
@@ -33,7 +34,8 @@ class MusicCog(commands.Cog):
 
         wavelink_player = self.get_current_player(ctx)
         if ctx.author.voice is None:
-            spray_temp = await ctx.send(f"{ctx.author.mention} tried to play something without being connected to voice chat! 🤡")
+            spray_temp = await ctx.send(
+                f"{ctx.author.mention} tried to play something without being connected to voice chat! 🤡")
             minute = datetime.datetime.now().astimezone()
             minute = minute + datetime.timedelta(minutes=5)
             await ctx.author.timeout(minute)
@@ -72,10 +74,10 @@ class MusicCog(commands.Cog):
                 url=query,
                 description=tracks.author,
                 color=discord.Color.red())
-                .set_author(
+            .set_author(
                 name=f"{user.display_name} added a playlist to the queue",
                 icon_url=user.avatar)
-                .set_footer(
+            .set_footer(
                 text=f"Duration: {added} songs"
             ))
         else:
@@ -86,12 +88,12 @@ class MusicCog(commands.Cog):
                 url=track.uri,
                 description=track.author,
                 color=discord.Color.red())
-                .set_author(
+            .set_author(
                 name=f"{user.display_name} added a song to the queue",
                 icon_url=user.avatar)
-                .set_thumbnail(
+            .set_thumbnail(
                 url=track.artwork)
-                .set_footer(
+            .set_footer(
                 text="Song Length: " + self.timestamp(track.length)))
 
         # Start the player if it is not playing
@@ -127,24 +129,23 @@ class MusicCog(commands.Cog):
     @commands.command(name="playnext", aliases=["pn"])
     async def play_next(self, ctx: commands.Context, *, query: str):
         try:
-            tracks=await self.play(ctx,query=query)
+            tracks = await self.play(ctx, query=query)
             if tracks is None:
                 return
             tracks_added_count = len(tracks)
             wavelink_player = self.get_current_player(ctx)
             queue = wavelink_player.queue
-            if len(queue)>1:
+            if len(queue) > 1:
                 for i in range(tracks_added_count):
-                    tmp = queue.get_at(len(queue)-1)
+                    tmp = queue.get_at(len(queue) - 1)
                     queue.put_at(0, tmp)
-            if len(tracks) >1:
+            if len(tracks) > 1:
                 await ctx.send("Those songs are playing next! 👆")
             else:
                 await ctx.send("This song is playing next! 👆")
         except Exception as e:
             await ctx.send("You must have a __queue__ going in order to play something next! "
                            "Start a queue with **!p** first.")
-
 
     @commands.command(name="remove", aliases=["rm"])
     async def remove(self, ctx: commands.Context, *, position: int):
@@ -211,7 +212,7 @@ class MusicCog(commands.Cog):
             for i in range(0, len(wavelink_player.queue)):
                 if i > 4:
                     break
-                current_tracks += ('`' + str(i+1) + '.` ' + current_queue[i].title + ' - **'
+                current_tracks += ('`' + str(i + 1) + '.` ' + current_queue[i].title + ' - **'
                                    + current_queue[i].author + '**'
                                    + ' `' + self.timestamp(current_queue[i].length)
                                    + '`\n')
@@ -223,7 +224,7 @@ class MusicCog(commands.Cog):
             for i in range(0, len(wavelink_player.auto_queue)):
                 if i > 4:
                     break
-                auto_tracks += ('`' + str(i+1) + '.` ' + autoplay_queue[i].title + ' - **'
+                auto_tracks += ('`' + str(i + 1) + '.` ' + autoplay_queue[i].title + ' - **'
                                 + autoplay_queue[i].author + '**'
                                 + ' `' + self.timestamp(autoplay_queue[i].length)
                                 + '`\n')
@@ -238,32 +239,32 @@ class MusicCog(commands.Cog):
                 await ctx.send(embed=discord.Embed(
                     title=wavelink_player.current.title,
                     description=wavelink_player.current.author + ' `'
-                    + self.timestamp(wavelink_player.current.length) + '`',
+                                + self.timestamp(wavelink_player.current.length) + '`',
                     color=discord.Color.from_rgb(115, 112, 175))
-                    .set_author(
+                .set_author(
                     name="Now Playing",
                     icon_url="https://i.imgur.com/s9gbmVq.png")
-                    .set_thumbnail(
+                .set_thumbnail(
                     url=wavelink_player.current.artwork)
-                    .add_field(
+                .add_field(
                     name=queue_on,
                     value=current_tracks,
                     inline=False)
-                    .add_field(
+                .add_field(
                     name=autoplay_on,
                     value=auto_tracks,
                     inline=False)
-                    .set_footer(
+                .set_footer(
                     text="Current Queue Duration: %s songs, %s" % (len(current_queue), total_duration)))
             else:
                 await ctx.send(embed=discord.Embed(
                     title="No tracks in the queue!",
                     description="Add more tracks with **!play** or keep the party going with **!autoplay**",
                     color=discord.Color.from_rgb(115, 112, 175))
-                    .set_author(
+                .set_author(
                     name="Uh Oh...",
                     icon_url="https://i.imgur.com/s9gbmVq.png")
-                    .set_footer(
+                .set_footer(
                     text="The music session will be ending soon!"))
         except Exception as e:
             print(e)
@@ -334,7 +335,7 @@ class MusicCog(commands.Cog):
         await self.empty_channel(payload.player)
 
     @commands.Cog.listener()
-    async def on_wavelink_track_end(self,payload: wavelink.TrackEndEventPayload):
+    async def on_wavelink_track_end(self, payload: wavelink.TrackEndEventPayload):
         player: wavelink.Player | None = payload.player
         if not player:
             return
