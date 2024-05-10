@@ -28,12 +28,17 @@ class DiscordFixer_cog(commands.Cog,name="DiscordFixer_cog"):
             try:
                 if "video" in attachment.content_type:
                     print("this is a video file!")
-                    self.video_fixer(filename,fileextension)
-                    convertedfile = filename + ".mp4"
+                    if(self.video_fixer(filename,fileextension)):
+                        convertedfile = filename + ".mp4"
                 if "image" in attachment.content_type:
                     print("this is a image file!")
-                    self.image_fixer(filename,fileextension)
-                    convertedfile = filename + ".jpg"
+                    if(self.image_fixer(filename,fileextension)):
+                        convertedfile = filename + ".jpg"
+                if "audio" in attachment.content_type:
+                    print("this is an audio file!")
+                    if (self.audio_fixer(filename,fileextension)):
+                        convertedfile= filename +".mp3"
+
             except Exception as e:
                 os.remove(attachment.filename)
                 os.remove(convertedfile)
@@ -51,14 +56,16 @@ class DiscordFixer_cog(commands.Cog,name="DiscordFixer_cog"):
                 await message.reply("Was unable to fix this file!")
                 print(e)
 
-
-
     def video_fixer(self,filename,fileextension):
-        ffmpeg.input(filename+"."+fileextension).output((filename + ".mp4"), vcodec='libx264', acodec="aac").run()
+        temp = ffmpeg.input(filename+"."+fileextension).output((filename + ".mp4"), vcodec='libx264', acodec="aac").run()
+        return temp
     def image_fixer(self,filename,fileextension):
         convertedimage=Image.open(filename+"."+fileextension)
         convertedimage=convertedimage.convert("RGB")
         convertedimage.save(filename+".jpg")
+    def audio_fixer(self,filename,fileextension):
+        temp = ffmpeg.input(filename+"."+fileextension).output((filename+".mp3"), acodec='libmp3lame').run()
+        return temp
 
     @commands.command(name="oldfix")
     async def fix(self,ctx: discord.ext.commands.Context):

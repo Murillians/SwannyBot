@@ -2,7 +2,7 @@
 #todo: optimize image, 1.5gb and several minutes on endeavor is not acceptable
 #needs application.yml, swannybottokens.py, special_cog.py, and swannybot.db in /config to run successfuly
 #run from python:latest because debian currently does not have python 3.11 stable
-FROM python:3.12
+FROM python:latest
 RUN mkdir -p /swannybot
 WORKDIR /swannybot
 COPY . .
