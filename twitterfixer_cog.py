@@ -13,41 +13,37 @@ class twitterfixer_cog(commands.Cog):
             callback=self.twitterfixer
         )
         self.bot.tree.add_command(self.ctx_menu)
-    async def twitterfixer(self,interaction:discord.Interaction, message:discord.Message):
+    async def twitterfixer(self,interaction: discord.Interaction, message: discord.Message):
         try:
             if message.content[0] != "!" and ("twitter.com" in message.content or "x.com" in message.content):
-                fixedMsg=""
-                splitMsg = message.content.split(' ')
+                fixedLinks=""
+                tempmsg=message.content.replace('\n', " ")
+                splitMsg = tempmsg.split(" ")
                 #this is just a message with the twitter link
                 if splitMsg.__len__() <2:
                     link = urlparse(message.content)
-                    fixedMsg = link.scheme+"://"+"vxtwitter.com"+link.path
-                    print(fixedMsg)
+                    fixedLinks = link.scheme+"://"+"vxtwitter.com"+link.path
+                    print(fixedLinks)
                 #this is a message with a twitter link in it somewhere
                 elif splitMsg.__len__() >=2:
                     for string in splitMsg:
                         linkTest = urlparse(string)
                         #found a twitter link, fix it
                         if linkTest.hostname is not None:
-                            temp = "".join([linkTest.scheme, "://"+"vxtwitter.com",linkTest.path," "])
+                            temp = "".join([linkTest.scheme, "://"+"vxtwitter.com",linkTest.path,'\n'])
                             print(temp)
-                            fixedMsg+=temp
-                        #not a twitter link, keep going
-                        else:
-                            fixedMsg+=string
-                            fixedMsg+=" "
+                            fixedLinks+=temp
 
-                msgChannel=message.channel
-                msgAuthor=message.author
                 #send back the message to discord with a "silent" flag so it doesnt re ping for the same message that was just sent
                 try:
-                    success=await msgChannel.send(content=f"{msgAuthor.mention}: {fixedMsg}",silent=True)
+                    success=await message.reply(content=f"{fixedLinks}",silent=True)
+                    if isinstance(success,discord.Message):
+                        await interaction.response.send_message(
+                            content="Link successfully fixed!", ephemeral=True
+                        )
                 except Exception as e:
                     print(e)
                     return
-                #delete the original message so there arent two of the same msg in discord, if we want to keep the orig
-                #comment this line out
-                await message.delete()
         except Exception as e:
              print(e)
 
