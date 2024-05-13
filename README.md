@@ -5,7 +5,7 @@ Swanny Bot is a voice channel music player for Discord.
 ## How does it work?
 - Swanny Bot utilizes an audio player library called [LavaLink](https://github.com/lavalink-devs/Lavalink?tab=readme-ov-file#lavalink) to stream music through. This standalone interface sends to nodes to the [LavaPlayer](https://github.com/lavalink-devs/lavaplayer?tab=readme-ov-file#lavaplayer---audio-player-library-for-discord) as form of an API.
 - In order to talk to the Java-based LavaLink with Python, Swanny Bot uses the [WaveLink](https://github.com/PythonistaGuild/Wavelink?tab=readme-ov-file) library as a python wrapper for LavaLink.
-- Once we have our commands laid out, we will need to run the `Lavalink.jar` and the bot will connect to the voice channel you are currently in via a command (we designated this to the `!play` function).
+- Now run the `Lavalink.jar` and the bot will connect to the voice channel you are currently in via a command (we designated this to the `!play` function).
 - Once it connects, it will begin a play session where any user can add songs to a queue.
 - With the play function, end users can search for any song as a message through discord with a query of a song and artist name or with a link. Lavalink can pair with Youtube, Spotify, and Apple Music APIs to find a Playable (a type defined by the wavelink library).
 - When a Playable is found, it is added to a Queue object which can be manipulated as well. End users can view the queue at any time with a rich embed through discord every time they call `!queue`.
