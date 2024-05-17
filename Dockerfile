@@ -12,6 +12,8 @@ RUN apt-get update -y &&\
     apt-get install -y bash &&\
     apt-get install -y ffmpeg &&\
     apt-get install -y nano &&\
-    pip install -r requirements.txt --user
+    pip install -r requirements.txt --user &&\
+    #temp update to ytdlp because of FUCKING ELON AGAIN
+    pip install -U https://github.com/yt-dlp/yt-dlp.git --force-reinstall
 ENV TZ=America/New_York
 CMD ["/swannybot/start.sh"]
