@@ -1,53 +1,41 @@
 import discord
 from discord import app_commands
+from discord.ext import commands
 
 import traceback
 
 import swannybottokens
 
 # The guild in which this slash command will be registered.
-# It is recommended to have a test guild to separate from your "production" bot
 swancord = discord.Object(swannybottokens.swancord)
 
-#todo: Route the initialization to swanny_bot.py
-class MyClient(discord.Client):
-    def __init__(self) -> None:
-        # Just default intents and a `discord.Client` instance
-        # We don't need a `commands.Bot` instance because we are not
-        # creating text-based commands.
-        intents = discord.Intents.default()
-        super().__init__(intents=intents)
 
-        # We need an `discord.app_commands.CommandTree` instance
-        # to register application commands (slash commands in this case)
-        self.tree = app_commands.CommandTree(self)
+class GameDealCog(commands.Cog, name="GameDealCog"):
 
-    async def on_ready(self):
-        print(f'Logged in as {self.user} (ID: {self.user.id})')
-        print('------')
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
+        self.ctx_menu = app_commands.ContextMenu(
+            name="Track Game Deal",
+            callback=self.track_game
+        )
+        self.bot.tree.add_command(self.ctx_menu)
 
-    async def setup_hook(self) -> None:
-        # Sync the application command with Discord.
-        await self.tree.sync(guild=swancord)
+    async def track_game(self, interaction: discord.Interaction, message: discord.Message):
+        # Send the modal with an instance of our `GameDealCog` class
+        # Since modals require an interaction, they cannot be done as a response to a text command.
+        # They can only be done as a response to either an application command or a button press.
+        await interaction.response.send_message("Hello")
 
+    async def cog_unload(self) -> None:
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
-class GameDealCog(discord.ui.Modal, title='Track Game'):
-    # Our modal classes MUST subclass `discord.ui.Modal`,
-    # but the title can be whatever you want.
-
-    # This will be a short input, where the user can enter their name
-    # It will also have a placeholder, as denoted by the `placeholder` kwarg.
-    # By default, it is required and is a short-style input which is exactly
-    # what we want.
+    # User enters title
     name = discord.ui.TextInput(
         label='Title',
         placeholder='Insert Game Title',
     )
 
-    # This is a longer, paragraph style input, where user can submit feedback
-    # Unlike the name, it is not required. If filled out, however, it will
-    # only accept a maximum of 300 characters, as denoted by the
-    # `max_length=300` kwarg.
+    # User enters link with max of 300 characters
     feedback = discord.ui.TextInput(
         label='Store link to game',
         style=discord.TextStyle.long,
@@ -66,15 +54,5 @@ class GameDealCog(discord.ui.Modal, title='Track Game'):
         traceback.print_exception(type(error), error, error.__traceback__)
 
 
-client = MyClient()
-
-
-@client.tree.command(guild=swancord, description="Add a game to track its discounts and receive alerts")
-async def track_game(interaction: discord.Interaction):
-    # Send the modal with an instance of our `Feedback` class
-    # Since modals require an interaction, they cannot be done as a response to a text command.
-    # They can only be done as a response to either an application command or a button press.
-    await interaction.response.send_modal(GameDealCog())
-
-
-client.run(swannybottokens.discord_api_key)
+async def setup(bot):
+    await bot.add_cog(GameDealCog(bot=bot))
