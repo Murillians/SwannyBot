@@ -10,24 +10,7 @@ import swannybottokens
 swancord = discord.Object(swannybottokens.swancord)
 
 
-class GameDealCog(commands.Cog, name="GameDealCog"):
-
-    def __init__(self, bot: commands.Bot) -> None:
-        self.bot = bot
-        self.ctx_menu = app_commands.ContextMenu(
-            name="Track Game Deal",
-            callback=self.track_game
-        )
-        self.bot.tree.add_command(self.ctx_menu)
-
-    async def track_game(self, interaction: discord.Interaction, message: discord.Message):
-        # Send the modal with an instance of our `GameDealCog` class
-        # Since modals require an interaction, they cannot be done as a response to a text command.
-        # They can only be done as a response to either an application command or a button press.
-        await interaction.response.send_message("Hello")
-
-    async def cog_unload(self) -> None:
-        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
+class GameTrackModal(discord.ui.Modal, title="Track Game"):
 
     # User enters title
     name = discord.ui.TextInput(
@@ -52,6 +35,31 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
 
         # Make sure we know what the error actually is
         traceback.print_exception(type(error), error, error.__traceback__)
+
+
+class GameDealCog(commands.Cog, name="GameDealCog"):
+
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot = bot
+        self.ctx_menu = app_commands.ContextMenu(
+            name="Track Game Deal",
+            callback=self.track_game
+        )
+        self.bot.tree.add_command(self.ctx_menu)
+
+    # @commands.hybrid_command(
+    #     name="track_game",
+    #     description="Add a game to track deals and receive alerts."
+    # )
+    @app_commands.guilds(swancord)
+    async def track_game(self, interaction: discord.Interaction, message: discord.Message):
+        # Send the modal with an instance of our `GameTrackModal` class
+        # Since modals require an interaction, they cannot be done as a response to a text command.
+        # They can only be done as a response to either an application command or a button press.
+        await interaction.response.send_modal(GameTrackModal())
+
+    async def cog_unload(self) -> None:
+        self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
 
 
 async def setup(bot):
