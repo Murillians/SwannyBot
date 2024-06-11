@@ -173,7 +173,7 @@ class MusicCog(commands.Cog):
     @commands.command(name="resume", aliases=["r"])
     async def resume(self, ctx, *args):
         wavelink_player = self.get_current_player(ctx)
-        if wavelink_player.pause(True):
+        if wavelink_player.paused is True:
             await wavelink_player.pause(False)
 
     # Skip Function
