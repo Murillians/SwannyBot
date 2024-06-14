@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import requests
+import json
 
 import traceback
 
@@ -12,7 +13,6 @@ swancord = discord.Object(swannybottokens.swancord)
 
 
 class GameTrackModal(discord.ui.Modal, title="Track Game"):
-
     # # User enters title
     # name = discord.ui.TextInput(
     #     label='Title',
@@ -30,30 +30,43 @@ class GameTrackModal(discord.ui.Modal, title="Track Game"):
 
     async def on_submit(self, interaction: discord.Interaction):
         api_url = "https://www.cheapshark.com/api/1.0/deals?steamAppID="
+        cheapshark_link = "https://www.cheapshark.com/redirect?dealID="
         store_link = self.feedback.value
-        print(store_link)
         if "store.steampowered.com" not in store_link:
-            await interaction.response.send_message(f'Sorry, I did not recognize your Steam store link!', ephemeral=True)
+            await interaction.response.send_message(f'Sorry, I did not recognize your Steam store link!',
+                                                    ephemeral=True)
         else:
             try:
                 # Parse for the steam app ID from the link then break
-                parse_link = str(store_link)
-                print(parse_link)
                 app_id = ""
-                for i in parse_link:
-                    if i.isdigit():
-                        while i.isdigit():
-                            app_id = app_id + i
+                id_hit = False
+                for i in store_link:
+                    if app_id != "" and id_hit is False:
                         break
-                print(app_id)
+                    if i.isdigit():
+                        id_hit = True
+                        app_id = app_id + i
+                    else:
+                        id_hit = False
+
+                fixed_api_url = api_url + app_id
+                payload = {}
+                headers = {}
+
+                response = requests.request("GET", fixed_api_url, headers=headers, data=payload)
+                # Pretty Print JSON Formatter
+                parsed = json.loads(response.text)
+                deal_id = parsed[0]["dealID"]
+                print(json.dumps(parsed, indent=3))
+
+                fixed_cheapshark_link = cheapshark_link + deal_id
+                await interaction.response.send_message(fixed_cheapshark_link, ephemeral=True)
+
+                # Return game deal with 2 buttons, close and track game
+
             except Exception as e:
                 print(e)
                 return
-
-        # parse the steamAppID from the link to run through the cheapshark API
-        # Return game deal with 2 buttons, close and track game
-
-        await interaction.response.send_message(f'{self.feedback.value} is now set up for deal alerts!', ephemeral=True)
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
@@ -99,7 +112,9 @@ class GameDealHub(discord.ui.View):
     # todo: finish after cog is done.
     @discord.ui.button(label='Help', style=discord.ButtonStyle.grey)
     async def game_deal_help(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message('# I support markdown!\n To share a game from the steam client, scroll down to the Share button on the right', ephemeral=True)
+        await interaction.response.send_message(
+            '# I support markdown!\n To share a game from the steam client, scroll down to the Share button on the right',
+            ephemeral=True)
         self.stop()
 
 
