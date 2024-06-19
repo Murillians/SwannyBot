@@ -3,6 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 import requests
 import json
+import database
 
 import traceback
 
@@ -53,9 +54,6 @@ class GameDealHub(discord.ui.View):
     def __init__(self):
         super().__init__()
 
-    # When the confirm button is pressed, set the inner value to `True` and
-    # stop the View from listening to more input.
-    # We also send the user an ephemeral message that we're confirming their choice.
     @discord.ui.button(label="View Tracked Games", style=discord.ButtonStyle.green)
     async def view_tracked_games(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = DropdownView()
@@ -117,7 +115,7 @@ class Dropdown(discord.ui.Select):
 # Modal popup on "Lookup/Track Game" Button
 class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
-    # User enters link with max of 300 characters
+    # User enters link with max of 600 characters
     feedback = discord.ui.TextInput(
         label='store.steampowered.com link to game',
         style=discord.TextStyle.long,
@@ -126,6 +124,7 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
         max_length=600,
     )
 
+    # Logic after store link submission
     async def on_submit(self, interaction: discord.Interaction):
         api_url = "https://www.cheapshark.com/api/1.0/deals?steamAppID="
         cheapshark_link = "https://www.cheapshark.com/redirect?dealID="
@@ -156,7 +155,6 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
                 parsed = json.loads(response.text)
 
                 # Build the response message with all the stores available where the game is on sale
-                response_message = ""
                 on_sale_stores = ""
                 not_sale_stores = ""
                 title = ""
