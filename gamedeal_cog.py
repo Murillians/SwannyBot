@@ -9,29 +9,38 @@ import traceback
 
 import swannybottokens
 
-# Global active stores list
-stores_url = "https://www.cheapshark.com/api/1.0/stores"
-
-payload = {}
-headers = {}
-
-response = requests.request("GET", stores_url, headers=headers, data=payload)
-if response.status_code == 200:
-
-    stores_data = response.json()
-
-    stores_list = []
-    for store in stores_data:
-        stores_dict = {
-            'storeID': store['storeID'],
-            'storeName': store['storeName'],
-            'isActive': store['isActive'],
-        }
-        if stores_dict['isActive'] == 1:
-            stores_list.append(stores_dict)
-
 # The guild in which this slash command will be registered.
 swancord = discord.Object(swannybottokens.swancord)
+# Check for active stores on boot
+active_stores = []
+
+
+def store_check(stores):
+    # Global active stores list
+    stores_url = "https://www.cheapshark.com/api/1.0/stores"
+
+    payload = {}
+    headers = {}
+
+    response = requests.request("GET", stores_url, headers=headers, data=payload)
+    if response.status_code == 200:
+
+        stores_data = response.json()
+
+        stores_list = stores
+        for store in stores_data:
+            stores_dict = {
+                'storeID': store['storeID'],
+                'storeName': store['storeName'],
+                'isActive': store['isActive'],
+            }
+            if stores_dict['isActive'] == 1:
+                stores_list.append(stores_dict)
+
+        return stores_list
+
+
+store_check(active_stores)
 
 
 class GameDealCog(commands.Cog, name="GameDealCog"):
@@ -168,7 +177,7 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
                     is_on_sale = int(i["isOnSale"])
 
                     store_name = ""
-                    for j in stores_list:
+                    for j in active_stores:
                         if store_id == j["storeID"]:
                             store_name = j["storeName"]
                             break
