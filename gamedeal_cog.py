@@ -135,6 +135,7 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
     # Logic after store link submission
     async def on_submit(self, interaction: discord.Interaction):
+        user = discord.MessageInteraction.user
         api_url = "https://www.cheapshark.com/api/1.0/deals?steamAppID="
         cheapshark_link = "https://www.cheapshark.com/redirect?dealID="
         store_link = self.feedback.value
@@ -167,6 +168,8 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
                 on_sale_stores = ""
                 not_sale_stores = ""
                 title = ""
+                sale_price = ""
+                is_on_sale = ""
                 for i in parsed:
                     deal_id = i["dealID"]
                     store_id = i["storeID"]
@@ -204,6 +207,8 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
                 await interaction.response.send_message(response_message, view=view, ephemeral=True)
                 # Wait for the View to stop listening for input...
                 await view.wait()
+                print(discord.MessageInteraction.user)
+                return app_id, user, is_on_sale, sale_price
 
             except Exception as e:
                 print(e)
@@ -220,10 +225,15 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 class ViewOnLookup(discord.ui.View):
     def __init__(self):
         super().__init__()
+        self.dbhandler = database.dbhandler()
 
     @discord.ui.button(label="Track Game", style=discord.ButtonStyle.red)
     async def track_game_on_lookup(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message('todo', ephemeral=True)
+        await interaction.response.send_message('This game is now being tracked. '
+                                                'You will be notified when it goes on sale again!', ephemeral=True)
+        obj = GameLookupModal()
+        app_id, user, is_on_sale, sale_price = await obj.on_submit(interaction)
+        self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?)", (app_id, user, is_on_sale, sale_price))
         self.stop()
 
 
