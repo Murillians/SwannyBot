@@ -246,6 +246,7 @@ class ViewOnLookup(discord.ui.View):
         # obj = GameLookupModal()
         # app_id, user, is_on_sale, sale_price = await obj.on_submit(interaction)
         self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?)", (self.app_id, self.user, self.is_on_sale, self.sale_price))
+        self.dbhandler.commit()
         self.stop()
 
 
