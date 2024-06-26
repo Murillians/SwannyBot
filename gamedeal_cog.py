@@ -51,8 +51,9 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
     @commands.hybrid_command(name="game_deals", description="View or add tracked game deals")
     @app_commands.guilds(swancord)
     async def ask(self, ctx: commands.Context):
+        user = ctx.message.author.id
         # We create the view and assign it to a variable so we can wait for it later.
-        view = GameDealHub()
+        view = GameDealHub(user)
         await ctx.send('Please select an option:', view=view, ephemeral=True)
         # Wait for the View to stop listening for input...
         await view.wait()
@@ -60,8 +61,9 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
 
 # Main Menu View that returns from slash command
 class GameDealHub(discord.ui.View):
-    def __init__(self):
+    def __init__(self, user=None):
         super().__init__()
+        self.user = user
 
     @discord.ui.button(label="View Tracked Games", style=discord.ButtonStyle.green)
     async def view_tracked_games(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -73,7 +75,7 @@ class GameDealHub(discord.ui.View):
     # This one is similar to the confirmation button except sets the inner value to `False`
     @discord.ui.button(label='Lookup/Track Game', style=discord.ButtonStyle.red)
     async def lookup_game(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(GameLookupModal())
+        await interaction.response.send_modal(GameLookupModal(self.user))
         self.stop()
 
     # todo: finish after cog is done.
@@ -123,6 +125,9 @@ class Dropdown(discord.ui.Select):
 
 # Modal popup on "Lookup/Track Game" Button
 class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
+    def __init__(self, user=None):
+        self.user = user
+        super().__init__()
 
     # User enters link with max of 600 characters
     feedback = discord.ui.TextInput(
@@ -135,7 +140,6 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
     # Logic after store link submission
     async def on_submit(self, interaction: discord.Interaction):
-        user = discord.MessageInteraction.user
         api_url = "https://www.cheapshark.com/api/1.0/deals?steamAppID="
         cheapshark_link = "https://www.cheapshark.com/redirect?dealID="
         store_link = self.feedback.value
@@ -203,12 +207,12 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
                 # Pretty Print JSON Formatter
                 # print(json.dumps(parsed, indent=3))
 
-                view = ViewOnLookup()
+                view = ViewOnLookup(app_id, is_on_sale, sale_price, self.user)
                 await interaction.response.send_message(response_message, view=view, ephemeral=True)
                 # Wait for the View to stop listening for input...
                 await view.wait()
-                print(discord.MessageInteraction.user)
-                return app_id, user, is_on_sale, sale_price
+
+                # return app_id, user, is_on_sale, sale_price
 
             except Exception as e:
                 print(e)
@@ -223,17 +227,25 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
 # Track Game Button after Game Lookup returns successful
 class ViewOnLookup(discord.ui.View):
-    def __init__(self):
+    def __init__(self, app_id, is_on_sale, sale_price, user=None):
         super().__init__()
         self.dbhandler = database.dbhandler()
+        self.app_id = app_id
+        self.is_on_sale = is_on_sale
+        self.sale_price = sale_price
+        self.user = user
+        print(self.app_id)
+        print(self.is_on_sale)
+        print(self.sale_price)
+        print(self.user)
 
     @discord.ui.button(label="Track Game", style=discord.ButtonStyle.red)
     async def track_game_on_lookup(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message('This game is now being tracked. '
                                                 'You will be notified when it goes on sale again!', ephemeral=True)
-        obj = GameLookupModal()
-        app_id, user, is_on_sale, sale_price = await obj.on_submit(interaction)
-        self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?)", (app_id, user, is_on_sale, sale_price))
+        # obj = GameLookupModal()
+        # app_id, user, is_on_sale, sale_price = await obj.on_submit(interaction)
+        self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?)", (self.app_id, self.user, self.is_on_sale, self.sale_price))
         self.stop()
 
 
