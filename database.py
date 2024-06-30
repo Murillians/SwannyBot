@@ -72,7 +72,7 @@ class dbhandler():
         cur.execute("CREATE TABLE guildStreamers(GuildID TEXT, TwitchUserID TEXT)")
         cur.execute("CREATE TABLE guildChannels(GuildID TEXT, ChannelID TEXT)")
         cur.execute("CREATE TABLE Special(count int, id int)")
-        cur.execute("CREATE TABLE game_tracker(steam_app_id INT, user_id INT, is_on_sale BOOL, lowest_price DECIMAL(10,2))")
+        cur.execute("CREATE TABLE game_tracker(steam_app_id INT, is_on_sale BOOL, lowest_price DECIMAL(10,2)), user TEXT")
         # self.cur.execute("CREATE TABLE birthdays (GuildID TEXT, UserID TEXT, birthday TEXT)")
         self.conn.commit()
         cur.execute("INSERT INTO TEST values ('swannybot')")

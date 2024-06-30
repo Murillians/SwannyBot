@@ -51,7 +51,7 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
     @commands.hybrid_command(name="game_deals", description="View or add tracked game deals")
     @app_commands.guilds(swancord)
     async def ask(self, ctx: commands.Context):
-        user = ctx.message.author.id
+        user = str(ctx.message.author)
         # We create the view and assign it to a variable so we can wait for it later.
         view = GameDealHub(user)
         await ctx.send('Please select an option:', view=view, ephemeral=True)
@@ -102,18 +102,22 @@ class DropdownView(discord.ui.View):
 # of this class is called when the user changes their choice
 class Dropdown(discord.ui.Select):
     def __init__(self):
-
+        self.dbhandler = database.dbhandler()
+        self.users = self.dbhandler.execute("SELECT DISTINCT user FROM game_tracker")
+        user_list = self.users.fetchall()
+        # for user in user_list:
+        #     print(user["user"])
         # Set the options that will be presented inside the dropdown
-        options = [
-            discord.SelectOption(label='Red', description='Your favourite colour is red', emoji='🟥'),
-            discord.SelectOption(label='Green', description='Your favourite colour is green', emoji='🟩'),
-            discord.SelectOption(label='Blue', description='Your favourite colour is blue', emoji='🟦'),
-        ]
+        options = []
+        for user in user_list:
+            options = options + [
+                discord.SelectOption(label=user["user"])
+            ]
 
         # The placeholder is what will be shown when no option is chosen
         # The min and max values indicate we can only pick one of the three options
         # The options parameter defines the dropdown options. We defined this above
-        super().__init__(placeholder='Select Game', min_values=1, max_values=1, options=options)
+        super().__init__(placeholder='Select User', min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         # Use the interaction object to send a response message containing
@@ -234,18 +238,13 @@ class ViewOnLookup(discord.ui.View):
         self.is_on_sale = is_on_sale
         self.sale_price = sale_price
         self.user = user
-        print(self.app_id)
-        print(self.is_on_sale)
-        print(self.sale_price)
-        print(self.user)
 
     @discord.ui.button(label="Track Game", style=discord.ButtonStyle.red)
     async def track_game_on_lookup(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message('This game is now being tracked. '
                                                 'You will be notified when it goes on sale again!', ephemeral=True)
-        # obj = GameLookupModal()
-        # app_id, user, is_on_sale, sale_price = await obj.on_submit(interaction)
-        self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?)", (self.app_id, self.user, self.is_on_sale, self.sale_price))
+
+        self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?)", (self.app_id, self.is_on_sale, self.sale_price, self.user))
         self.dbhandler.commit()
         self.stop()
 
