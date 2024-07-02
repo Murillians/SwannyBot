@@ -68,7 +68,7 @@ class GameDealHub(discord.ui.View):
     @discord.ui.button(label="View Tracked Games", style=discord.ButtonStyle.green)
     async def view_tracked_games(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = DropdownView(self.user)
-        await interaction.response.send_message("Select from your list of tracked games:",
+        await interaction.response.send_message(f"Greetings **{self.user}**, select from your list of tracked games:",
                                                 view=view, ephemeral=True)
         self.stop()
 
@@ -105,12 +105,8 @@ class Dropdown(discord.ui.Select):
     def __init__(self, user):
         self.user = user
         self.dbhandler = database.dbhandler()
-        self.games = self.dbhandler.execute("SELECT title, steam_app_id FROM game_tracker WHERE user = ? LIMIT 25", (self.user,))
-        game_list = self.games.fetchall()
-        print(game_list)
-        # for game in game_list:
-        #     print(game["title"])
-        # Set the options that will be presented inside the dropdown
+        games = self.dbhandler.execute("SELECT title, steam_app_id FROM game_tracker WHERE user = ? LIMIT 25", (self.user,))
+        game_list = games.fetchall()
         options = []
         for game in game_list:
             options = options + [
@@ -123,18 +119,15 @@ class Dropdown(discord.ui.Select):
         super().__init__(placeholder='Select Game', min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        tracked_game = True
         app_id = self.values[0]
-        print(self.values)
-        game_lookup = GameLookupModal(self.user).on_submit(interaction, app_id, tracked_game)
+        game_lookup = GameLookupModal(self.user).on_submit(interaction, app_id)
         await game_lookup
 
 
 # Modal popup on "Lookup/Track Game" Button
 class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
-    def __init__(self, user, tracked_game=False):
+    def __init__(self, user):
         self.user = user
-        self.tracked_game = tracked_game
         super().__init__()
 
     # User enters link with max of 600 characters
@@ -147,7 +140,7 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
     )
 
     # Logic after store link submission
-    async def on_submit(self, interaction: discord.Interaction, app_id="", tracked_game=False):
+    async def on_submit(self, interaction: discord.Interaction, app_id=""):
         api_url = "https://www.cheapshark.com/api/1.0/deals?steamAppID="
         cheapshark_link = "https://www.cheapshark.com/redirect?dealID="
         store_link = self.feedback.value
@@ -208,20 +201,16 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
                         f"[{store_name}](<{cheapshark_link}{deal_id}>) | **${sale_price}** `MSRP`\n"
                 )
 
-        response_message = (f"# __{title}__\n\n" + on_sale_stores + not_sale_stores +
-                            "Waiting for a better deal? Track this game below now:\n")
+        response_message = (f"# __{title}__\n\n" + on_sale_stores + not_sale_stores)
 
         # Pretty Print JSON Formatter
         # print(json.dumps(parsed, indent=3))
-        if not self.tracked_game:
-            view = ViewOnLookup(app_id, is_on_sale, sale_price, self.user, title)
-            await interaction.response.send_message(response_message, view=view, ephemeral=True)
-            # Wait for the View to stop listening for input...
-            await view.wait()
-        else:
-            await interaction.response.send_message(response_message, ephemeral=True)
-
-        # return app_id, user, is_on_sale, sale_price
+        view = ViewOnLookup(app_id, is_on_sale, sale_price, self.user, title, response_message)
+        await interaction.response.send_message(response_message +
+                                                "Waiting for a better deal? Track this game below now:\n",
+                                                view=view, ephemeral=True)
+        # Wait for the View to stop listening for input...
+        await view.wait()
 
     async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         await interaction.response.send_message('Oops! Something went wrong.', ephemeral=True)
@@ -232,7 +221,7 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
 # Track Game Button after Game Lookup returns successful
 class ViewOnLookup(discord.ui.View):
-    def __init__(self, app_id, is_on_sale, sale_price, user, title):
+    def __init__(self, app_id, is_on_sale, sale_price, user, title, response):
         super().__init__()
         self.dbhandler = database.dbhandler()
         self.app_id = app_id
@@ -240,16 +229,51 @@ class ViewOnLookup(discord.ui.View):
         self.sale_price = sale_price
         self.user = user
         self.title = title
+        self.response = response
 
-    @discord.ui.button(label="Track Game", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Track Game", style=discord.ButtonStyle.green)
     async def track_game_on_lookup(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_message('This game is now being tracked. '
-                                                'You will be notified when it goes on sale again!', ephemeral=True)
-        # todo: Conditional to bar from tracking duplicates as well as 25 entry limit check. duplicates WILL BREAK the dropdown selector
+        id_column = self.dbhandler.execute("SELECT steam_app_id FROM game_tracker WHERE user = ?", (self.user,))
+        id_list = id_column.fetchall()
+        # Check if 25-game limit was reached
+        if len(id_list) > 25:
+            await interaction.response.send_message("Sorry, you cannot track more than 25 games. "
+                                                    "Try removing some from your tracked list.", ephemeral=True)
+            return
+        # Check if entry is already in database
+        for i in id_list:
+            if self.app_id == str(i["steam_app_id"]):
+                await interaction.response.send_message("This game is already being tracked! Please try another game.", ephemeral=True)
+                return
+
         self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?,?)",
                                (self.app_id, self.is_on_sale, self.sale_price, self.user, self.title))
+        await interaction.response.send_message('This game is now being tracked. '
+                                                'You will be notified when it goes on sale again!', ephemeral=True)
         self.dbhandler.commit()
         self.stop()
+
+    @discord.ui.button(label="Post Results", style=discord.ButtonStyle.grey)
+    async def post_results_on_lookup(self, interaction: discord.Interaction, button:discord.ui.Button):
+        await interaction.response.send_message(self.response)
+        self.stop()
+
+    @discord.ui.button(label="Remove Game", style=discord.ButtonStyle.red)
+    async def remove_game_on_lookup(self, interaction: discord.Interaction, button:discord.ui.Button):
+        # Check for entry in database
+        id_column = self.dbhandler.execute("SELECT steam_app_id FROM game_tracker WHERE user = ?", (self.user,))
+        id_list = id_column.fetchall()
+        for i in id_list:
+            if self.app_id == str(i["steam_app_id"]):
+                self.dbhandler.execute("DELETE FROM game_tracker WHERE steam_app_id = ?", (int(self.app_id),))
+                self.dbhandler.commit()
+                await interaction.response.send_message(
+                    "This game will be removed from the tracker and you will no longer be notified!", ephemeral=True)
+                self.stop()
+            else:
+                await interaction.response.send_message(
+                    "This game does not exist in your tracking list. Try adding it first!", ephemeral=True)
+                self.stop()
 
 
 async def setup(bot):
