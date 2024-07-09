@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import discord
 from discord.ext import commands
 import swannybottokens
@@ -6,14 +7,14 @@ from help_cog import help_cog
 from streamer_cog import streamer_cog
 from special_cog import special_cog
 from video_cog import video_cog
-# from rep_cog import rep_cog
+#from rep_cog import rep_cog
 from twitterfixer_cog import twitterfixer_cog
 from music_cog import MusicCog
 from discord_fixer import DiscordFixer_cog
 import database
 import wavelink
-
-
+discord.utils.setup_logging()
+logger=logging.getLogger('discord')
 class Swannybot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
@@ -45,6 +46,9 @@ class Swannybot(commands.Bot):
         await self.load_extension("streamer_cog")
         await self.load_extension("special_cog")
         await self.load_extension("discord_fixer")
+        logger.info("All cogs loaded")
+        logger.error("error logging works")
+
 
 swannybot :Swannybot= Swannybot()
 async def main():

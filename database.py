@@ -8,6 +8,7 @@ from datetime import timedelta
 from os.path import exists
 from sys import platform
 
+logger=logging.getLogger('discord')
 class dbhandler():
     databaseFile =""
     if platform =="linux":
@@ -28,9 +29,9 @@ class dbhandler():
         if exists(self.databaseFile):
             shutil.copy(self.databaseFile, self.databaseFile + ".backup")
         self.conn = sqlite3.connect(self.databaseFile)
-        logging.info("was able to open database file, checking for integrity")
+        logging.info("Was able to open database file, checking for integrity")
         self.selfCheck()
-        logging.info("self check completed successfully")
+        logging.info("Self check completed successfully!")
         self.conn.row_factory=self.dict_factory
 
     def dict_factory(self, cursor, row):

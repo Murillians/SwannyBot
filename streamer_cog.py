@@ -11,6 +11,7 @@ import database
 import aiohttp
 import swannybottokens
 
+logger=logging.getLogger('discord')
 class channelInfo():
     def __init__(self):
         self.id = None
@@ -59,7 +60,7 @@ class streamer_cog(commands.Cog):
         self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
         async with aiohttp.ClientSession(headers=self.headers) as session:
             for row in self.dbhandler.execute("select * from streamers"):
-                #print("Querying twitch for info on " + row["TwitchUserID"])
+                #logger.info("Querying twitch for info on %s", row["TwitchUserID"])
                 async with session.get(str(self.TwitchEndpoint + row["TwitchUserID"])) as response:
                     if response.status == 200:
                         streamData = await response.json()
@@ -75,7 +76,8 @@ class streamer_cog(commands.Cog):
                         lastStarted = lastStarted + timedelta(hours=6)
                         if (streamData["type"] == "live") and (fixedTime > lastStarted):
                             #print(streamData)
-                            print(streamData["user_name"] + " went live at "+str(time.time()))
+                            #print(streamData["user_name"] + " went live at "+str(time.time()))
+                            logger.info("%s went live at %s",streamData["user_name"],str(time.time()))
                             for row in self.dbhandler.execute("select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",(row["TwitchUserID"],)):
                                 destChannel = self.bot.get_channel(int(row["ChannelID"]))
                                 richEmbed = discord.Embed(
