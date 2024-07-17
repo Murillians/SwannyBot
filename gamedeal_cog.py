@@ -1,15 +1,17 @@
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import tasks, commands
 import requests
 import json
 import database
+import datetime
+from dateutil import tz
 
 import traceback
 
 import swannybottokens
 
-# The guild in which this slash command will be registered.
+# The guild(s) in which this slash command will be registered.
 swancord = discord.Object(swannybottokens.swancord)
 active_stores = []
 
@@ -43,10 +45,83 @@ def store_check(stores):
 store_check(active_stores)
 
 
+def game_lookup(app_id):
+    api_url = "https://www.cheapshark.com/api/1.0/deals?steamAppID="
+
+    # Build request to cheapshark API
+    fixed_api_url = api_url + app_id
+    payload = {}
+    headers = {}
+
+    response = requests.request("GET", fixed_api_url, headers=headers, data=payload)
+    parsed = json.loads(response.text)
+    # Pretty Print JSON Formatter
+    # print(json.dumps(parsed, indent=3))
+
+    deal_id = []
+    title = []
+    sale_price = []
+    normal_price = []
+    savings = []
+    is_on_sale = []
+    store_name = []
+
+    for i in parsed:
+        deal_id = deal_id + [i["dealID"]]
+        store_id = i["storeID"]
+        title = title + [i["title"]]
+        sale_price = sale_price + [i["salePrice"]]
+        normal_price = normal_price + [i["normalPrice"]]
+        savings = savings + [round(float(i["savings"]))]
+        is_on_sale = is_on_sale + [int(i["isOnSale"])]
+        for j in active_stores:
+            if store_id == j["storeID"]:
+                store_name = store_name + [j["storeName"]]
+                break
+
+    # Returns list variables, so we will need to iterate through all of them in other functions
+    return deal_id, title, sale_price, normal_price, savings, is_on_sale, store_name
+
+
 class GameDealCog(commands.Cog, name="GameDealCog"):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+        self.daily_checked = False
+
+    @commands.command(name="checktest")
+    async def check_test(self, ctx):
+        await self.daily_sale_check()
+
+    # Check database entries daily for sales
+    @tasks.loop(seconds=5)
+    async def daily_sale_check(self):
+        try:
+            time_now_est = datetime.datetime.now(tz.gettz('America/New_York'))
+            dbhandler = database.dbhandler()
+            if time_now_est.hour >= 14 and self.daily_checked is False:
+                id_column = dbhandler.execute("SELECT DISTINCT steam_app_id FROM game_tracker")
+                id_list = id_column.fetchall()
+                for app_id in id_list:
+                    print(app_id["steam_app_id"])
+                    deal_id, title, sale_price, normal_price, savings, is_on_sale, store_name = game_lookup(str(app_id["steam_app_id"]))
+                    db_is_on_sale = dbhandler.execute("SELECT is_on_sale FROM game_tracker WHERE steam_app_id = ?", (app_id["steam_app_id"],))
+                    # For loop to iterate through game_lookup list variables, thus tab below
+                    if db_is_on_sale == 0 and is_on_sale == 1:
+                        pass
+                        # check if within lowest price recorded of game, generate notif list
+                        # second conditional check to see if new lowest price ever
+                    elif db_is_on_sale == 1 and is_on_sale == 0:
+                        pass
+                        # update db that game is no longer on sale, do not send any notif
+                    elif db_is_on_sale == is_on_sale:
+                        pass
+                        # No change, do nothing
+            self.daily_checked = True
+        except Exception as e:
+            print(e)
+
+    # todo: Function that resets the daily_checked variable
 
     @commands.hybrid_command(name="game_deals", description="View or add tracked game deals")
     @app_commands.guilds(swancord)
@@ -98,9 +173,6 @@ class DropdownView(discord.ui.View):
         self.add_item(Dropdown(self.user))
 
 
-# Defines a custom Select containing colour options
-# that the user can choose. The callback function
-# of this class is called when the user changes their choice
 class Dropdown(discord.ui.Select):
     def __init__(self, user):
         self.user = user
@@ -113,15 +185,12 @@ class Dropdown(discord.ui.Select):
                 discord.SelectOption(label=game["steam_app_id"], description=game["title"])
             ]
 
-        # The placeholder is what will be shown when no option is chosen
-        # The min and max values indicate we can only pick one of the three options
-        # The options parameter defines the dropdown options. We defined this above
         super().__init__(placeholder='Select Game', min_values=1, max_values=1, options=options)
 
     async def callback(self, interaction: discord.Interaction):
         app_id = self.values[0]
-        game_lookup = GameLookupModal(self.user).on_submit(interaction, app_id)
-        await game_lookup
+        dropdown_game_lookup = GameLookupModal(self.user).on_submit(interaction, app_id)
+        await dropdown_game_lookup
 
 
 # Modal popup on "Lookup/Track Game" Button
@@ -160,54 +229,38 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
                 else:
                     id_hit = False
 
-        # Build request to cheapshark API
-        fixed_api_url = api_url + app_id
-        payload = {}
-        headers = {}
+        deal_id, title, sale_price, normal_price, savings, is_on_sale, store_name = game_lookup(app_id)
 
-        response = requests.request("GET", fixed_api_url, headers=headers, data=payload)
-        parsed = json.loads(response.text)
+        is_on_sale_check = 0
+        lowest_price = 300.0
 
-        # Build the response message with all the stores available where the game is on sale
+        for i in range(0, len(store_name)):
+            float_sale_price = float(sale_price[i])
+            if float_sale_price <= lowest_price:
+                lowest_price = float_sale_price
+
         on_sale_stores = ""
         not_sale_stores = ""
-        title = ""
-        sale_price = ""
-        is_on_sale = ""
-        for i in parsed:
-            deal_id = i["dealID"]
-            store_id = i["storeID"]
-            title = i["title"]
-            sale_price = i["salePrice"]
-            normal_price = i["normalPrice"]
-            savings = round(float(i["savings"]))
-            is_on_sale = int(i["isOnSale"])
 
-            store_name = ""
-            for j in active_stores:
-                if store_id == j["storeID"]:
-                    store_name = j["storeName"]
-                    break
-
-            if is_on_sale == 1:
+        for i in range(0, len(store_name)):
+            if is_on_sale[i] == 1:
                 on_sale_stores = (
                         on_sale_stores +
-                        f"# [{store_name}](<{cheapshark_link}{deal_id}>) | **${sale_price}**\n"
-                        f"### ~~${normal_price}~~ | `-{savings}% OFF`\n"
+                        f"# [{store_name[i]}](<{cheapshark_link}{deal_id[i]}>) | **${sale_price[i]}**\n"
+                        f"### ~~${normal_price[i]}~~ | `-{savings[i]}% OFF`\n"
                 )
-            elif is_on_sale == 0:
+                is_on_sale_check = 1
+            elif is_on_sale[i] == 0:
                 not_sale_stores = (
                         not_sale_stores +
-                        f"[{store_name}](<{cheapshark_link}{deal_id}>) | **${sale_price}** `MSRP`\n"
+                        f"[{store_name[i]}](<{cheapshark_link}{deal_id[i]}>) | **${sale_price[i]}** `MSRP`\n"
                 )
 
-        response_message = (f"# __{title}__\n\n" + on_sale_stores + not_sale_stores)
+        response_message = (f"# __{title[0]}__\n\n" + on_sale_stores + not_sale_stores)
 
-        # Pretty Print JSON Formatter
-        # print(json.dumps(parsed, indent=3))
-        view = ViewOnLookup(app_id, is_on_sale, sale_price, self.user, title, response_message)
+        view = ViewOnLookup(app_id, is_on_sale_check, lowest_price, self.user, title[0], response_message)
         await interaction.response.send_message(response_message +
-                                                "Waiting for a better deal? Track this game below now:\n",
+                                                "Select from the following options:\n",
                                                 view=view, ephemeral=True)
         # Wait for the View to stop listening for input...
         await view.wait()
@@ -221,12 +274,12 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
 # Track Game Button after Game Lookup returns successful
 class ViewOnLookup(discord.ui.View):
-    def __init__(self, app_id, is_on_sale, sale_price, user, title, response):
+    def __init__(self, app_id, is_on_sale, lowest_price, user, title, response):
         super().__init__()
         self.dbhandler = database.dbhandler()
         self.app_id = app_id
         self.is_on_sale = is_on_sale
-        self.sale_price = sale_price
+        self.lowest_price = float(lowest_price)
         self.user = user
         self.title = title
         self.response = response
@@ -247,7 +300,7 @@ class ViewOnLookup(discord.ui.View):
                 return
 
         self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?,?)",
-                               (self.app_id, self.is_on_sale, self.sale_price, self.user, self.title))
+                               (self.app_id, self.is_on_sale, self.lowest_price, self.user, self.title))
         await interaction.response.send_message('This game is now being tracked. '
                                                 'You will be notified when it goes on sale again!', ephemeral=True)
         self.dbhandler.commit()
