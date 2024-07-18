@@ -15,10 +15,6 @@ pipeline {
           withCredentials([file(credentialsId: 'special_cog', variable: 'SECRET')]) {
             sh('cp \$SECRET ./special_cog.py')
           }
-          sh "> ./wavelink/application.yml"
-          withCredentials([file(credentialsId: 'applicationyml', variable: 'SECRET')]) {
-            sh('cp \$SECRET ./wavelink/application.yml')
-          }
           sh ("chmod -R +rxw .")
       }
       }
