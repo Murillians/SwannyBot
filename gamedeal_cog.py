@@ -88,9 +88,12 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.daily_checked = False
+        self.dbhandler = database.dbhandler()
+
+    deals_channel = 1154762810987921438  # 912393491521351800 <- this is the actual deals channel ID, currently bawt-spam
 
     @commands.command(name="checktest")
-    async def check_test(self, ctx):
+    async def checktest(self, ctx):
         await self.daily_sale_check()
 
     # Check database entries daily for sales
@@ -98,26 +101,64 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
     async def daily_sale_check(self):
         try:
             time_now_est = datetime.datetime.now(tz.gettz('America/New_York'))
-            dbhandler = database.dbhandler()
+            cheapshark_link = "https://www.cheapshark.com/redirect?dealID="
+            deals = self.bot.get_channel(self.deals_channel)
+            historical_low_message = ""
+            sale_message = ""
+
+            # Check for game sales every day at 2 PM EST
             if time_now_est.hour >= 14 and self.daily_checked is False:
-                id_column = dbhandler.execute("SELECT DISTINCT steam_app_id FROM game_tracker")
-                id_list = id_column.fetchall()
+                id_list = self.dbhandler.execute("SELECT DISTINCT steam_app_id FROM game_tracker").fetchall()
+
                 for app_id in id_list:
-                    print(app_id["steam_app_id"])
                     deal_id, title, sale_price, normal_price, savings, is_on_sale, store_name = game_lookup(str(app_id["steam_app_id"]))
-                    db_is_on_sale = dbhandler.execute("SELECT is_on_sale FROM game_tracker WHERE steam_app_id = ?", (app_id["steam_app_id"],))
-                    # For loop to iterate through game_lookup list variables, thus tab below
-                    if db_is_on_sale == 0 and is_on_sale == 1:
+                    db_is_on_sale_cur = self.dbhandler.execute("SELECT is_on_sale FROM game_tracker WHERE steam_app_id = ?", (app_id["steam_app_id"],)).fetchone()
+                    db_is_on_sale = db_is_on_sale_cur["is_on_sale"]
+                    db_lowest_price_cur = self.dbhandler.execute("SELECT lowest_price FROM game_tracker WHERE steam_app_id = ?", (app_id["steam_app_id"],)).fetchone()
+                    db_lowest_price = db_lowest_price_cur["lowest_price"]
+                    db_user_cur = self.dbhandler.execute(
+                        "SELECT user FROM game_tracker WHERE steam_app_id = ?",(app_id["steam_app_id"],)).fetchall()
+
+                    # Grab all users that are tracking this game
+                    db_user_list = []
+                    for user in db_user_cur:
+                        db_user_list = db_user_list + [user["user"]]
+                    mentions = ""
+
+                    no_sales = sum(is_on_sale)  # If there are no sales from game lookup, sum will equal zero
+                    # Check for game sales, if any
+                    if db_is_on_sale == 1 and no_sales == 0:
+                        self.dbhandler.execute("UPDATE game_tracker SET is_on_sale = 0 WHERE steam_app_id = ?",
+                                               (app_id["steam_app_id"],))
+                    elif db_is_on_sale == 0 and no_sales == 0:
                         pass
-                        # check if within lowest price recorded of game, generate notif list
-                        # second conditional check to see if new lowest price ever
-                    elif db_is_on_sale == 1 and is_on_sale == 0:
-                        pass
-                        # update db that game is no longer on sale, do not send any notif
-                    elif db_is_on_sale == is_on_sale:
-                        pass
-                        # No change, do nothing
-            self.daily_checked = True
+                    else:
+                        # Find the game's lowest sale price from all stores from the game lookup and also grab i's index
+                        store_index = None
+                        lowest_price = 300.0
+                        for i in range(0, len(sale_price)):
+                            float_sale_price = float(sale_price[i])
+                            if float_sale_price <= lowest_price:
+                                lowest_price = float_sale_price
+                                store_index = i
+
+                        if is_on_sale[store_index] == 1:
+                            if lowest_price < db_lowest_price:
+                                historical_low_message = historical_low_message + f"# **{title[store_index]}** has hit a NEW all time low at `${lowest_price}` on [{store_name[store_index]}](<{cheapshark_link}{deal_id[store_index]}>) ~~${normal_price[store_index]}~~ | `-{savings[store_index]}% OFF`!\n"
+                                self.dbhandler.execute("UPDATE game_tracker SET lowest_price = ? WHERE steam_app_id = ?",
+                                                       (lowest_price, app_id["steam_app_id"],))
+                                self.dbhandler.commit()
+                                # todo: iterate over mentions list
+                                mentions = ""
+                            # If game's lowest price is within 15% of historical database low
+                            elif lowest_price <= (db_lowest_price * 1.15):
+                                sale_message = sale_message + f"### **{title[store_index]}** is on sale at `${sale_price[store_index]}` on [{store_name[store_index]}](<{cheapshark_link}{deal_id[store_index]}>) ~~${normal_price[store_index]}~~ | `-{savings[store_index]}% OFF`!\n"
+                            self.dbhandler.execute("UPDATE game_tracker SET is_on_sale = 1 WHERE steam_app_id = ?", (app_id["steam_app_id"],))
+                            self.dbhandler.commit()
+
+                self.daily_checked = True
+                await deals.send(historical_low_message + sale_message)
+
         except Exception as e:
             print(e)
 
@@ -127,8 +168,9 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
     @app_commands.guilds(swancord)
     async def ask(self, ctx: commands.Context):
         user = str(ctx.message.author)
+        user_id = ctx.message.author.id
         # We create the view and assign it to a variable so we can wait for it later.
-        view = GameDealHub(user)
+        view = GameDealHub(user, user_id)
         await ctx.send('Please select an option:', view=view, ephemeral=True)
         # Wait for the View to stop listening for input...
         await view.wait()
@@ -136,13 +178,14 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
 
 # Main Menu View that returns from slash command
 class GameDealHub(discord.ui.View):
-    def __init__(self, user):
+    def __init__(self, user, user_id):
         super().__init__()
         self.user = user
+        self.user_id = user_id
 
     @discord.ui.button(label="View Tracked Games", style=discord.ButtonStyle.green)
     async def view_tracked_games(self, interaction: discord.Interaction, button: discord.ui.Button):
-        view = DropdownView(self.user)
+        view = DropdownView(self.user, self.user_id)
         await interaction.response.send_message(f"Greetings **{self.user}**, select from your list of tracked games:",
                                                 view=view, ephemeral=True)
         self.stop()
@@ -150,7 +193,7 @@ class GameDealHub(discord.ui.View):
     # This one is similar to the confirmation button except sets the inner value to `False`
     @discord.ui.button(label='Lookup/Track Game', style=discord.ButtonStyle.red)
     async def lookup_game(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(GameLookupModal(self.user))
+        await interaction.response.send_modal(GameLookupModal(self.user, self.user_id))
         self.stop()
 
     # todo: finish after cog is done.
@@ -165,17 +208,19 @@ class GameDealHub(discord.ui.View):
 
 # Dropdown List for "View Tracked Games" Button
 class DropdownView(discord.ui.View):
-    def __init__(self, user):
+    def __init__(self, user, user_id):
         super().__init__()
         self.user = user
+        self.user_id = user_id
 
         # Adds the dropdown to our view object.
-        self.add_item(Dropdown(self.user))
+        self.add_item(Dropdown(self.user, self.user_id))
 
 
 class Dropdown(discord.ui.Select):
-    def __init__(self, user):
+    def __init__(self, user, user_id):
         self.user = user
+        self.user_id = user_id
         self.dbhandler = database.dbhandler()
         games = self.dbhandler.execute("SELECT title, steam_app_id FROM game_tracker WHERE user = ? LIMIT 25", (self.user,))
         game_list = games.fetchall()
@@ -189,14 +234,15 @@ class Dropdown(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         app_id = self.values[0]
-        dropdown_game_lookup = GameLookupModal(self.user).on_submit(interaction, app_id)
+        dropdown_game_lookup = GameLookupModal(self.user, self.user_id).on_submit(interaction, app_id)
         await dropdown_game_lookup
 
 
 # Modal popup on "Lookup/Track Game" Button
 class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
-    def __init__(self, user):
+    def __init__(self, user, user_id):
         self.user = user
+        self.user_id = user_id
         super().__init__()
 
     # User enters link with max of 600 characters
@@ -258,7 +304,7 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
         response_message = (f"# __{title[0]}__\n\n" + on_sale_stores + not_sale_stores)
 
-        view = ViewOnLookup(app_id, is_on_sale_check, lowest_price, self.user, title[0], response_message)
+        view = ViewOnLookup(app_id, is_on_sale_check, lowest_price, self.user, self.user_id, title[0], response_message)
         await interaction.response.send_message(response_message +
                                                 "Select from the following options:\n",
                                                 view=view, ephemeral=True)
@@ -274,13 +320,14 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
 # Track Game Button after Game Lookup returns successful
 class ViewOnLookup(discord.ui.View):
-    def __init__(self, app_id, is_on_sale, lowest_price, user, title, response):
+    def __init__(self, app_id, is_on_sale, lowest_price, user, user_id, title, response):
         super().__init__()
         self.dbhandler = database.dbhandler()
         self.app_id = app_id
         self.is_on_sale = is_on_sale
         self.lowest_price = float(lowest_price)
         self.user = user
+        self.user_id = user_id
         self.title = title
         self.response = response
 
@@ -299,8 +346,8 @@ class ViewOnLookup(discord.ui.View):
                 await interaction.response.send_message("This game is already being tracked! Please try another game.", ephemeral=True)
                 return
 
-        self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?,?)",
-                               (self.app_id, self.is_on_sale, self.lowest_price, self.user, self.title))
+        self.dbhandler.execute("INSERT INTO game_tracker VALUES(?,?,?,?,?,?)",
+                               (self.app_id, self.is_on_sale, self.lowest_price, self.user, self.user_id, self.title))
         await interaction.response.send_message('This game is now being tracked. '
                                                 'You will be notified when it goes on sale again!', ephemeral=True)
         self.dbhandler.commit()
