@@ -277,6 +277,11 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
         deal_id, title, sale_price, normal_price, savings, is_on_sale, store_name = game_lookup(app_id)
 
+        # Map stores with their respective sale price to sort stores by lowest price for lookup response message
+        store_sales = dict(map(lambda m, n: (m, n), store_name, sale_price))
+        sorted_store_sales = sorted(store_sales.items(), key=lambda x: x[1])
+        print(store_sales)
+        print(sorted_store_sales)
         is_on_sale_check = 0
         lowest_price = 300.0
 
@@ -286,23 +291,19 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
                 lowest_price = float_sale_price
 
         on_sale_stores = ""
-        not_sale_stores = ""
 
         for i in range(0, len(store_name)):
             if is_on_sale[i] == 1:
+                # todo: check if character limit will reach 2000. If so, stop adding stores. Output warning of more stores available on cheapshark website.
                 on_sale_stores = (
                         on_sale_stores +
                         f"# [{store_name[i]}](<{cheapshark_link}{deal_id[i]}>) | **${sale_price[i]}**\n"
                         f"### ~~${normal_price[i]}~~ | `-{savings[i]}% OFF`\n"
                 )
                 is_on_sale_check = 1
-            elif is_on_sale[i] == 0:
-                not_sale_stores = (
-                        not_sale_stores +
-                        f"[{store_name[i]}](<{cheapshark_link}{deal_id[i]}>) | **${sale_price[i]}** `MSRP`\n"
-                )
 
-        response_message = (f"# __{title[0]}__\n\n" + on_sale_stores + not_sale_stores)
+        response_message = (f"# __{title[0]}__\n\n" + on_sale_stores)
+        print(response_message)
 
         view = ViewOnLookup(app_id, is_on_sale_check, lowest_price, self.user, self.user_id, title[0], response_message)
         await interaction.response.send_message(response_message +
