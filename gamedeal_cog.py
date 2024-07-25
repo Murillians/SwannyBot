@@ -87,7 +87,6 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        self.daily_checked = False
         self.dbhandler = database.dbhandler()
 
     deals_channel = 1154762810987921438  # 912393491521351800 <- this is the actual deals channel ID, currently bawt-spam
@@ -106,63 +105,64 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
             historical_low_message = ""
             sale_message = ""
 
-            # Check for game sales every day at 2 PM EST
-            if time_now_est.hour >= 14 and self.daily_checked is False:
-                id_list = self.dbhandler.execute("SELECT DISTINCT steam_app_id FROM game_tracker").fetchall()
+            id_list = self.dbhandler.execute("SELECT DISTINCT steam_app_id FROM game_tracker").fetchall()
 
-                for app_id in id_list:
-                    deal_id, title, sale_price, normal_price, savings, is_on_sale, store_name = game_lookup(str(app_id["steam_app_id"]))
-                    db_is_on_sale_cur = self.dbhandler.execute("SELECT is_on_sale FROM game_tracker WHERE steam_app_id = ?", (app_id["steam_app_id"],)).fetchone()
-                    db_is_on_sale = db_is_on_sale_cur["is_on_sale"]
-                    db_lowest_price_cur = self.dbhandler.execute("SELECT lowest_price FROM game_tracker WHERE steam_app_id = ?", (app_id["steam_app_id"],)).fetchone()
-                    db_lowest_price = db_lowest_price_cur["lowest_price"]
-                    db_user_cur = self.dbhandler.execute(
-                        "SELECT user FROM game_tracker WHERE steam_app_id = ?",(app_id["steam_app_id"],)).fetchall()
+            for app_id in id_list:
+                deal_id, title, sale_price, normal_price, savings, is_on_sale, store_name = game_lookup(str(app_id["steam_app_id"]))
+                db_is_on_sale_cur = self.dbhandler.execute("SELECT is_on_sale FROM game_tracker WHERE steam_app_id = ?", (app_id["steam_app_id"],)).fetchone()
+                db_is_on_sale = db_is_on_sale_cur["is_on_sale"]
+                db_lowest_price_cur = self.dbhandler.execute("SELECT lowest_price FROM game_tracker WHERE steam_app_id = ?", (app_id["steam_app_id"],)).fetchone()
+                db_lowest_price = db_lowest_price_cur["lowest_price"]
+                db_user_cur = self.dbhandler.execute(
+                    "SELECT user FROM game_tracker WHERE steam_app_id = ?",(app_id["steam_app_id"],)).fetchall()
 
-                    # Grab all users that are tracking this game
-                    db_user_list = []
-                    for user in db_user_cur:
-                        db_user_list = db_user_list + [user["user"]]
-                    mentions = ""
+                # Grab all users that are tracking this game
+                db_user_list = []
+                for user in db_user_cur:
+                    db_user_list = db_user_list + [user["user"]]
+                mentions = ""
 
-                    no_sales = sum(is_on_sale)  # If there are no sales from game lookup, sum will equal zero
-                    # Check for game sales, if any
-                    if db_is_on_sale == 1 and no_sales == 0:
-                        self.dbhandler.execute("UPDATE game_tracker SET is_on_sale = 0 WHERE steam_app_id = ?",
-                                               (app_id["steam_app_id"],))
-                    elif db_is_on_sale == 0 and no_sales == 0:
-                        pass
-                    else:
-                        # Find the game's lowest sale price from all stores from the game lookup and also grab i's index
-                        store_index = None
-                        lowest_price = 300.0
-                        for i in range(0, len(sale_price)):
-                            float_sale_price = float(sale_price[i])
-                            if float_sale_price <= lowest_price:
-                                lowest_price = float_sale_price
-                                store_index = i
+                no_sales = sum(is_on_sale)  # If there are no sales from game lookup, sum will equal zero
+                # Check for game sales, if any
+                if db_is_on_sale == 1 and no_sales == 0:
+                    self.dbhandler.execute("UPDATE game_tracker SET is_on_sale = 0 WHERE steam_app_id = ?",
+                                           (app_id["steam_app_id"],))
+                elif db_is_on_sale == 0 and no_sales == 0:
+                    pass
+                else:
+                    # Find the game's lowest sale price from all stores from the game lookup and also grab i's index
+                    store_index = None
+                    lowest_price = 300.0
+                    for i in range(0, len(sale_price)):
+                        float_sale_price = float(sale_price[i])
+                        if float_sale_price <= lowest_price:
+                            lowest_price = float_sale_price
+                            store_index = i
 
-                        if is_on_sale[store_index] == 1:
-                            if lowest_price < db_lowest_price:
-                                historical_low_message = historical_low_message + f"# **{title[store_index]}** has hit a NEW all time low at `${lowest_price}` on [{store_name[store_index]}](<{cheapshark_link}{deal_id[store_index]}>) ~~${normal_price[store_index]}~~ | `-{savings[store_index]}% OFF`!\n"
-                                self.dbhandler.execute("UPDATE game_tracker SET lowest_price = ? WHERE steam_app_id = ?",
-                                                       (lowest_price, app_id["steam_app_id"],))
-                                self.dbhandler.commit()
-                                # todo: iterate over mentions list
-                                mentions = ""
-                            # If game's lowest price is within 15% of historical database low
-                            elif lowest_price <= (db_lowest_price * 1.15):
-                                sale_message = sale_message + f"### **{title[store_index]}** is on sale at `${sale_price[store_index]}` on [{store_name[store_index]}](<{cheapshark_link}{deal_id[store_index]}>) ~~${normal_price[store_index]}~~ | `-{savings[store_index]}% OFF`!\n"
-                            self.dbhandler.execute("UPDATE game_tracker SET is_on_sale = 1 WHERE steam_app_id = ?", (app_id["steam_app_id"],))
+                    if is_on_sale[store_index] == 1:
+                        if lowest_price < db_lowest_price:
+                            historical_low_message = historical_low_message + f"# **{title[store_index]}** has hit a NEW all time low at `${lowest_price}` on [{store_name[store_index]}](<{cheapshark_link}{deal_id[store_index]}>) ~~${normal_price[store_index]}~~ | `-{savings[store_index]}% OFF`!\n"
+                            self.dbhandler.execute("UPDATE game_tracker SET lowest_price = ? WHERE steam_app_id = ?",
+                                                   (lowest_price, app_id["steam_app_id"],))
                             self.dbhandler.commit()
+                            # todo: iterate over mentions list
+                            mentions = ""
+                        # If game's lowest price is within 15% of historical database low
+                        elif lowest_price <= (db_lowest_price * 1.15):
+                            sale_message = sale_message + f"### **{title[store_index]}** is on sale at `${sale_price[store_index]}` on [{store_name[store_index]}](<{cheapshark_link}{deal_id[store_index]}>) ~~${normal_price[store_index]}~~ | `-{savings[store_index]}% OFF`!\n"
+                        self.dbhandler.execute("UPDATE game_tracker SET is_on_sale = 1 WHERE steam_app_id = ?", (app_id["steam_app_id"],))
+                        self.dbhandler.commit()
 
-                self.daily_checked = True
-                await deals.send(historical_low_message + sale_message)
+            await deals.send(historical_low_message + sale_message)
 
         except Exception as e:
             print(e)
 
-    # todo: Function that resets the daily_checked variable
+
+    # Check every day at 2pm EST
+    @tasks.loop(time=datetime.time(hour=14,tzinfo=tz.gettz('America/New_York')))
+    async def check_on_schedule(self):
+        await self.daily_sale_check()
 
     @commands.hybrid_command(name="game_deals", description="View or add tracked game deals")
     @app_commands.guilds(swancord)
