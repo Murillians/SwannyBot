@@ -1,5 +1,6 @@
 import asyncio
 import datetime
+import os
 
 import discord
 from discord.ext import commands
@@ -304,10 +305,11 @@ class MusicCog(commands.Cog):
     @commands.Cog.listener()
     async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
         # Swanny Bot says "Bye Bye!" then disconnects
-        tracks: wavelink.Search = await wavelink.Playable.search("https://www.youtube.com/watch?v=Sx3nXA23jjo")
-        track: wavelink.Playable = tracks[0]
-        await player.play(track)
-        await asyncio.sleep(3)
+        if os.path.exists("mario.mp3"):
+            tracks: wavelink.Playable = await wavelink.Playable.search(".\mario.mp3")
+            track: wavelink.Playable = tracks[0]
+            await player.play(track)
+            await asyncio.sleep(3)
         await player.disconnect()
 
     # Check every 10 minutes while playing if Swanny Bot is the only member in connected voice channel
