@@ -89,6 +89,7 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
         self.bot = bot
         self.dbhandler = database.dbhandler()
 
+    # todo: change to deals channel ID when merged to dev
     deals_channel = 1154762810987921438  # 912393491521351800 <- this is the actual deals channel ID, currently bawt-spam
 
     @commands.command(name="checktest")
@@ -96,10 +97,8 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
         await self.daily_sale_check()
 
     # Check database entries daily for sales
-    @tasks.loop(seconds=5)
     async def daily_sale_check(self):
         try:
-            time_now_est = datetime.datetime.now(tz.gettz('America/New_York'))
             cheapshark_link = "https://www.cheapshark.com/redirect?dealID="
             deals = self.bot.get_channel(self.deals_channel)
             historical_low_message = ""
@@ -158,7 +157,6 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
         except Exception as e:
             print(e)
 
-
     # Check every day at 2pm EST
     @tasks.loop(time=datetime.time(hour=14,tzinfo=tz.gettz('America/New_York')))
     async def check_on_schedule(self):
@@ -183,6 +181,7 @@ class GameDealHub(discord.ui.View):
         self.user = user
         self.user_id = user_id
 
+    # todo: return error when user has no games tracked
     @discord.ui.button(label="View Tracked Games", style=discord.ButtonStyle.green)
     async def view_tracked_games(self, interaction: discord.Interaction, button: discord.ui.Button):
         view = DropdownView(self.user, self.user_id)
@@ -276,12 +275,23 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
                     id_hit = False
 
         deal_id, title, sale_price, normal_price, savings, is_on_sale, store_name = game_lookup(app_id)
+        no_sales = sum(is_on_sale)  # If there are no sales from game lookup, sum will equal zero
 
         # Map stores with their respective sale price to sort stores by lowest price for lookup response message
         store_sales = dict(map(lambda m, n: (m, n), store_name, sale_price))
         sorted_store_sales = sorted(store_sales.items(), key=lambda x: x[1])
-        print(store_sales)
-        print(sorted_store_sales)
+
+        # Map the list variables by sorted store name
+        sorted_store_sales_list = [list(t) for t in sorted_store_sales]  # Convert to list from tuple
+        for i in range(0, len(sorted_store_sales_list)):
+            for j in range(0, len(store_name)):
+                if sorted_store_sales_list[i][0] == store_name[j]:
+                    sorted_store_sales_list[i].append(deal_id[j])
+                    sorted_store_sales_list[i].append(normal_price[j])
+                    sorted_store_sales_list[i].append(savings[j])
+                    sorted_store_sales_list[i].append(is_on_sale[j])
+
+        # print(sorted_store_sales_list)
         is_on_sale_check = 0
         lowest_price = 300.0
 
@@ -292,18 +302,20 @@ class GameLookupModal(discord.ui.Modal, title="Game Lookup"):
 
         on_sale_stores = ""
 
-        for i in range(0, len(store_name)):
-            if is_on_sale[i] == 1:
-                # todo: check if character limit will reach 2000. If so, stop adding stores. Output warning of more stores available on cheapshark website.
+        # Build the response message less of all stores on sale, response must be less than 1800 characters
+        for i in range(0, len(sorted_store_sales_list)):
+            if sorted_store_sales_list[i][5] == 1 and len(on_sale_stores) <= 1800:
                 on_sale_stores = (
                         on_sale_stores +
-                        f"# [{store_name[i]}](<{cheapshark_link}{deal_id[i]}>) | **${sale_price[i]}**\n"
-                        f"### ~~${normal_price[i]}~~ | `-{savings[i]}% OFF`\n"
+                        f"# [{sorted_store_sales_list[i][0]}](<{cheapshark_link}{sorted_store_sales_list[i][2]}>) | **${sorted_store_sales_list[i][1]}**\n"
+                        f"### ~~${sorted_store_sales_list[i][3]}~~ | `-{sorted_store_sales_list[i][4]}% OFF`\n"
                 )
                 is_on_sale_check = 1
+        no_sales_message = ""
+        if no_sales == 0:
+            no_sales_message = "**This game is not on sale anywhere!**\n"
 
-        response_message = (f"# __{title[0]}__\n\n" + on_sale_stores)
-        print(response_message)
+        response_message = (f"# __{title[0]}__\n\n" + no_sales_message + on_sale_stores)
 
         view = ViewOnLookup(app_id, is_on_sale_check, lowest_price, self.user, self.user_id, title[0], response_message)
         await interaction.response.send_message(response_message +
@@ -355,12 +367,12 @@ class ViewOnLookup(discord.ui.View):
         self.stop()
 
     @discord.ui.button(label="Post Results", style=discord.ButtonStyle.grey)
-    async def post_results_on_lookup(self, interaction: discord.Interaction, button:discord.ui.Button):
+    async def post_results_on_lookup(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.send_message(self.response)
         self.stop()
 
     @discord.ui.button(label="Remove Game", style=discord.ButtonStyle.red)
-    async def remove_game_on_lookup(self, interaction: discord.Interaction, button:discord.ui.Button):
+    async def remove_game_on_lookup(self, interaction: discord.Interaction, button: discord.ui.Button):
         # Check for entry in database
         id_column = self.dbhandler.execute("SELECT steam_app_id FROM game_tracker WHERE user = ?", (self.user,))
         id_list = id_column.fetchall()
