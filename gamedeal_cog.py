@@ -88,6 +88,7 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.dbhandler = database.dbhandler()
+        self.check_on_schedule.start()
 
     # todo: change deals_thread ID when tests return stable
     deals_thread = 1266820191912857681  # Insert Thread ID here to route deal notifs. bawt-spam thread currently.
