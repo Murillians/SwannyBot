@@ -46,6 +46,7 @@ class Swannybot(commands.Bot):
         await self.load_extension("streamer_cog")
         await self.load_extension("special_cog")
         await self.load_extension("discord_fixer")
+        await self.load_extension("gamedeal_cog")
         logger.info("All cogs loaded")
         logger.error("error logging works")
 
