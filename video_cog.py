@@ -67,7 +67,7 @@ class video_cog(commands.Cog):
             #reget file info, may have downloaded w/ different extension
             inputfile = (info['id'] + "." + info['ext'])
             # if the file is too big before transcode, don't even bother with transcode
-            if os.path.getsize(inputfile) > 25000000:
+            if os.path.getsize(inputfile) > ctx.filesize_limit:
                 await ctx.reply("File is too large, unable to embed")
                 os.remove(inputfile)
             # actual transcoding function
@@ -79,7 +79,7 @@ class video_cog(commands.Cog):
         try:
             filesize = os.path.getsize(inputfile)
             video_file = open(inputfile, 'rb')
-            if filesize > 25000000:
+            if filesize > ctx.filesize_limit:
                 await ctx.reply("File is too large, unable to embed")
             else:
                 await ctx.reply(file=File(video_file))
