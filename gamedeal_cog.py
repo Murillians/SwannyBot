@@ -90,8 +90,7 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
         self.dbhandler = database.dbhandler()
         self.check_on_schedule.start()
 
-    # todo: change deals_thread ID when tests return stable
-    deals_thread = 1266820191912857681  # Insert Thread ID here to route deal notifs. bawt-spam thread currently.
+    deals_thread = 1268631317755596860  # Insert Thread ID here to route deal notifs.
 
     @commands.command(name="checktest")
     async def checktest(self, ctx):
