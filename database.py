@@ -18,22 +18,15 @@ class dbhandler():
         databaseFile = "swannybot.db"
         logging.info("Windows/Other OS detected, loading database from /swannybot.db")
 
-    def __init__(self):
-        self.conn = None
-        self.connect()
-
-    def __del__(self):
-        self.conn.close()
-
-    def connect(self):
+    async def cog_load(self):
         # make db backup if exists, for testing
         if exists(self.databaseFile):
             shutil.copy(self.databaseFile, self.databaseFile + ".backup")
-        self.conn = sqlite3.connect(self.databaseFile)
+        conn = sqlite3.connect(self.databaseFile)
         logging.info("was able to open database file, checking for integrity")
+        conn.close()
         self.selfCheck()
         logging.info("self check completed successfully")
-        self.conn.row_factory=self.dict_factory
 
     def dict_factory(self, cursor, row):
         """ Used to return rows as dictionary"""
@@ -43,7 +36,7 @@ class dbhandler():
         return d
 
     def selfCheck(self):
-        cur = self.conn.cursor()
+        cur = sqlite3.connect(self.databaseFile).cursor()
         try:
             cur.execute(" SELECT count(*) FROM sqlite_master WHERE type='table' AND name='TEST' ")
             row = cur.fetchone()
@@ -64,9 +57,11 @@ class dbhandler():
             print("An Unknown Error has occurred with the database, rebuilding")
             shutil.copy(self.databaseFile, self.databaseFile + ".prerebuild")
             self.initialDBSetup()
+        cur.close()
 
     def initialDBSetup(self):
-        cur = self.conn.cursor()
+        conn=sqlite3.connect(self.databaseFile)
+        cur = conn.cursor()
         cur.execute("CREATE TABLE TEST(value TEXT)")
         cur.execute("CREATE TABLE streamers(TwitchUserID TEXT, LastStreamTime TEXT )")
         cur.execute("CREATE TABLE guildStreamers(GuildID TEXT, TwitchUserID TEXT)")
@@ -74,10 +69,10 @@ class dbhandler():
         cur.execute("CREATE TABLE Special(count int, id int)")
         cur.execute("CREATE TABLE game_tracker(steam_app_id INT, is_on_sale BOOL, lowest_price DECIMAL(10,2), user TEXT, user_id TEXT, title TEXT, notify BOOL)")
         # self.cur.execute("CREATE TABLE birthdays (GuildID TEXT, UserID TEXT, birthday TEXT)")
-        self.conn.commit()
+        conn.commit()
         cur.execute("INSERT INTO TEST values ('swannybot')")
-        self.conn.commit()
-        self.conn.close()
+        conn.commit()
+        conn.close()
         logging.debug("was able to successfully initialize database")
 
     # Executes a DB query, usage is execute(query, data), e.g.
@@ -86,12 +81,17 @@ class dbhandler():
     #   dbhandler.execute(select * from streamers where TwitchUserID=?, (data,))
     #   The trailing comma in the data parameter is necessary for single values
     def execute(self, query, data=None):
-        cur = self.conn.cursor()
+        conn=sqlite3.connect(self.databaseFile)
+        conn.row_factory=self.dict_factory
+        cur = conn.cursor()
         if data:
             cur.execute(query, data)
         else:
             cur.execute(query)
-        return cur
+        conn.commit()
+        temp=cur.fetchall()
+        conn.close()
+        return temp
 
     # Inserts data in the form of a dictionary into a table
     def insert(self, table_name, data=None):
@@ -99,8 +99,3 @@ class dbhandler():
         placeholders = ', '.join('?' * len(data))
         sql = 'INSERT INTO {} ({}) VALUES ({})'.format(table_name, columns, placeholders)
         self.execute(sql, data.values())
-        self.conn.commit()
-
-    # For manually committing to DB
-    def commit(self):
-        self.conn.commit()

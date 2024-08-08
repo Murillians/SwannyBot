@@ -88,7 +88,6 @@ class streamer_cog(commands.Cog):
                                 await destChannel.send(embed=richEmbed)
                             self.dbhandler.execute("update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?",
                                             (streamData["user_id"],))
-                            self.dbhandler.commit()
 
 
 
@@ -107,7 +106,6 @@ class streamer_cog(commands.Cog):
         self.dbhandler.execute("INSERT into Streamers VALUES(?,?)", (twitchChannelInfo.id, datetime.min))
         self.dbhandler.execute("INSERT into guildStreamers (GuildID,TwitchUserID) values (?,?) ",
                          (guild, twitchChannelInfo.id))
-        self.dbhandler.commit()
         richEmbed = discord.Embed(
             title='Successfully added ' + twitchChannelInfo.display_name + " to your list of subscribed twitch channels!",
             url=('https://www.twitch.tv/' + twitchChannelInfo.user_login)
@@ -125,7 +123,6 @@ class streamer_cog(commands.Cog):
         row = data.fetchone()
         if row == None or len(row) == 0:
             self.dbhandler.execute('''INSERT INTO guildChannels(GuildID,ChannelID) VALUES(?,?)''', (guild, currentChannel))
-            self.dbhandler.commit()
             await ctx.send("Successfully made this channel the default for stream notifications!")
             return
 
@@ -146,7 +143,6 @@ class streamer_cog(commands.Cog):
             if reply:
                 self.dbhandler.execute('''update guildChannels set ChannelID=? where GuildID=?''',
                                  (currentChannel, guild))
-                self.dbhandler.commit()
                 await ctx.send("Successfully made this channel the default for stream notifications!")
                 return
             elif not reply:
@@ -171,7 +167,6 @@ class streamer_cog(commands.Cog):
             return
         self.dbhandler.execute("delete from guildStreamers where GuildID=(?) and TwitchUserID=(?)",
                          (guild, twitchChannelInfo.id))
-        self.dbhandler.commit()
         await ctx.send('Successfully removed ' + twitchChannelInfo.display_name + " from your list of subscribed twitch channels!")
     @commands.command(name="list_twitch_channels",aliases=["twitch_list"], help="See a list of subscribed twitch channels for this server")
     async def listTwitchChannels(self,ctx):
