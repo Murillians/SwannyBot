@@ -89,7 +89,6 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
         self.bot = bot
         self.dbhandler = database.dbhandler()
         self.check_on_schedule.start()
-
     deals_thread = 1268631317755596860  # Insert Thread ID here to route deal notifs.
 
     @commands.command(name="checktest")
@@ -110,16 +109,19 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
             for app_id in id_list:
                 deal_id, title, sale_price, normal_price, savings, is_on_sale, store_name = game_lookup(
                     str(app_id["steam_app_id"]))
-                db_is_on_sale_cur = self.dbhandler.execute("SELECT is_on_sale FROM game_tracker WHERE steam_app_id = ?",
-                                                           (app_id["steam_app_id"],))
-                db_notify_cur = self.dbhandler.execute("SELECT notify FROM game_tracker WHERE steam_app_id = ?",
-                                                       (app_id["steam_app_id"],))
-                db_notify = db_notify_cur["notify"]
-                db_is_on_sale = db_is_on_sale_cur["is_on_sale"]
+                db_is_on_sale = self.dbhandler.execute("SELECT is_on_sale FROM game_tracker WHERE steam_app_id = ?",
+                                                           (app_id["steam_app_id"],))[0]["is_on_sale"]
+                db_notify = self.dbhandler.execute("SELECT notify FROM game_tracker WHERE steam_app_id = ?",
+                                                       (app_id["steam_app_id"],))[0]["notify"]
                 db_lowest_price_cur = self.dbhandler.execute(
                     "SELECT lowest_price FROM game_tracker WHERE steam_app_id = ?",
                     (app_id["steam_app_id"],))
-                db_lowest_price = db_lowest_price_cur["lowest_price"]
+                db_lowest_price = db_lowest_price_cur[0]['lowest_price']
+
+                for i in db_lowest_price_cur:
+                    if i['lowest_price']<db_lowest_price:
+                        db_lowest_price=i['lowest_price']
+
                 db_user_cur = self.dbhandler.execute(
                     "SELECT user_id FROM game_tracker WHERE steam_app_id = ?", (app_id["steam_app_id"],))
 
