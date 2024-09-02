@@ -306,7 +306,7 @@ class MusicCog(commands.Cog):
     async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
         # Swanny Bot says "Bye Bye!" then disconnects
         if os.path.exists("mario.mp3"):
-            tracks: wavelink.Playable = await wavelink.Playable.search(".\mario.mp3")
+            tracks: wavelink.Playable = await wavelink.Playable.search("mario.mp3")
             track: wavelink.Playable = tracks[0]
             await player.play(track)
             await asyncio.sleep(3)
