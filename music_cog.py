@@ -8,7 +8,18 @@ from discord.ext import commands
 import swannybottokens
 import wavelink
 import special_cog
+import logging
+import logging.handlers
 
+logger = logging.getLogger('wavelink')
+logger.setLevel(logging.DEBUG)
+
+handler = logging.FileHandler(filename='wavelink.log', encoding='utf-8')
+
+dt_fmt = '%Y-%m-%d %H:%M:%S'
+formatter = logging.Formatter('[{asctime}] [{levelname:<8}] {name}: {message}', dt_fmt, style='{')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 class MusicCog(commands.Cog):
     def __init__(self, bot: commands.Bot):

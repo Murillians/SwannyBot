@@ -4,14 +4,18 @@
 FROM python:latest
 RUN mkdir -p /swannybot
 WORKDIR /swannybot
-COPY . .
 RUN apt-get update -y &&\
     apt-get upgrade -y &&\
     pip install --upgrade pip &&\
     apt-get install -y bash &&\
     apt-get install -y ffmpeg &&\
-    apt-get install -y nano &&\
-    pip install -r requirements.txt --user &&\
-    pip install -U git+https://github.com/PythonistaGuild/Wavelink.git --force-reinstall
+    apt-get install -y nano
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+COPY requirements.txt .
+RUN . /opt/venv/bin/activate &&\
+    pip install -r requirements.txt &&\
+    pip install -U git+https://github.com/PythonistaGuild/Wavelink.git --force-reinstall \
+COPY . .
 ENV TZ=America/New_York
-CMD ["/swannybot/start.sh"]
+CMD . /opt/venv/bin/activate && exec python swanny_bot.py
