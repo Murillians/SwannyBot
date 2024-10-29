@@ -306,18 +306,10 @@ class MusicCog(commands.Cog):
     @commands.Cog.listener()
 
     async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
-        # Swanny Bot says "Bye Bye!" then disconnects
-        mariofile=pathlib.Path.cwd()/"mario.mp3"
-        if mariofile.exists():
-            tracks: wavelink.Playable = await wavelink.Playable.search(str(mariofile.as_posix()))
-            track: wavelink.Playable = tracks[0]
-            await player.play(track)
-            await asyncio.sleep(3)
-        else:
-            tracks: wavelink.Playable = await wavelink.Playable.search("https://youtu.be/F2Z2CklSxM0")
-            track: wavelink.Playable = tracks[0]
-            await player.play(track)
-            await asyncio.sleep(3)
+        tracks: wavelink.Playable = await wavelink.Playable.search("https://youtu.be/F2Z2CklSxM0")
+        track: wavelink.Playable = tracks[0]
+        await player.play(track)
+        await asyncio.sleep(3)
         await player.disconnect()
 
     # Check every 10 minutes while playing if Swanny Bot is the only member in connected voice channel
