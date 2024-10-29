@@ -4,6 +4,7 @@
 FROM python:latest
 RUN mkdir -p /swannybot
 WORKDIR /swannybot
+COPY . .
 RUN apt-get update -y &&\
     apt-get upgrade -y &&\
     pip install --upgrade pip &&\
@@ -13,9 +14,7 @@ RUN apt-get update -y &&\
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 COPY requirements.txt .
-RUN . /opt/venv/bin/activate &&\
-    pip install -r requirements.txt &&\
-    pip install -U git+https://github.com/PythonistaGuild/Wavelink.git --force-reinstall \
-COPY . .
+RUN pip install -r requirements.txt &&\
+    pip install -U git+https://github.com/PythonistaGuild/Wavelink.git --force-reinstall
 ENV TZ=America/New_York
 CMD . /opt/venv/bin/activate && exec python swanny_bot.py
