@@ -22,6 +22,16 @@ class BirthdayCog(commands.Cog, name="BirthdayCog"):
         self.bot = bot
         self.dbhandler = database.dbhandler()
 
+    @commands.hybrid_command(name="birthdays", description="View or add a birthday.")
+    @app_commands.guilds(swancord, boyscord)
+    async def ask(self, ctx: commands.Context):
+        user = str(ctx.message.author)
+        user_id = ctx.message.author.id
+        guild_id = ctx.message.guild.id
+        view = BirthdayMenu(user, user_id, guild_id)
+        await ctx.send('Please select an option:', view=view, ephemeral=True)
+        await view.wait()
+
 
 # Main Menu View that returns from slash command
 class BirthdayMenu(discord.ui.View):
