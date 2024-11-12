@@ -60,15 +60,16 @@ class dbhandler():
         cur.close()
 
     def initialDBSetup(self):
-        conn=sqlite3.connect(self.databaseFile)
+        conn = sqlite3.connect(self.databaseFile)
         cur = conn.cursor()
         cur.execute("CREATE TABLE TEST(value TEXT)")
         cur.execute("CREATE TABLE streamers(TwitchUserID TEXT, LastStreamTime TEXT )")
         cur.execute("CREATE TABLE guildStreamers(GuildID TEXT, TwitchUserID TEXT)")
         cur.execute("CREATE TABLE guildChannels(GuildID TEXT, ChannelID TEXT)")
         cur.execute("CREATE TABLE Special(count int, id int)")
-        cur.execute("CREATE TABLE game_tracker(steam_app_id INT, is_on_sale BOOL, lowest_price DECIMAL(10,2), user TEXT, user_id TEXT, title TEXT, notify BOOL)")
-        # self.cur.execute("CREATE TABLE birthdays (GuildID TEXT, UserID TEXT, birthday TEXT)")
+        cur.execute("CREATE TABLE game_tracker(steam_app_id INT, is_on_sale BOOL, lowest_price DECIMAL(10,2), "
+                    "user TEXT, user_id TEXT, title TEXT, notify BOOL)")
+        cur.execute("CREATE TABLE birthdays(month INT, day INT, user TEXT, user_id TEXT, guild_id TEXT)")
         conn.commit()
         cur.execute("INSERT INTO TEST values ('swannybot')")
         conn.commit()
@@ -81,8 +82,8 @@ class dbhandler():
     #   dbhandler.execute(select * from streamers where TwitchUserID=?, (data,))
     #   The trailing comma in the data parameter is necessary for single values
     def execute(self, query, data=None):
-        conn=sqlite3.connect(self.databaseFile)
-        conn.row_factory=self.dict_factory
+        conn = sqlite3.connect(self.databaseFile)
+        conn.row_factory = self.dict_factory
         cur = conn.cursor()
         if data:
             cur.execute(query, data)
