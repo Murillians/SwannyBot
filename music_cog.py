@@ -302,9 +302,8 @@ class MusicCog(commands.Cog):
         wavelink_player.queue.clear()
         await wavelink_player.disconnect()
 
-    @commands.command(name="leavetest")
+    #@commands.command(name="leavetest")
     @commands.Cog.listener()
-
     async def on_wavelink_inactive_player(self, player: wavelink.Player) -> None:
         tracks: wavelink.Search = await wavelink.Playable.search("https://www.youtube.com/watch?v=A9PC-wtT0g8")
         track: wavelink.Playable = tracks[0]
