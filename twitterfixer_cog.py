@@ -51,7 +51,7 @@ class twitterfixer_cog(commands.Cog):
 
     #@commands.Cog.listener('on_message')
     #async def on_message(self,message: discord.Message):
-    #    if message.guild.id == swannybottokens.swancord or message.guild.id == swannybottokens.jesuscord:
+    #    if message.guild.id == swannybottokens.swancord or message.guild.id == swannybottokens.boyscord:
     #        await self.twitterfixer(message)
 async def setup(bot):
     await bot.add_cog(twitterfixer_cog(bot=bot))

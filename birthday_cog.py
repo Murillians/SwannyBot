@@ -13,7 +13,7 @@ import swannybottokens
 
 # The guild(s) in which this slash command will be registered.
 swancord = discord.Object(swannybottokens.swancord)
-boyscord = discord.Object(swannybottokens.jesuscord)
+boyscord = discord.Object(swannybottokens.boyscord)
 
 
 # Helper for date input validation
@@ -55,9 +55,6 @@ class BirthdayCog(commands.Cog, name="BirthdayCog"):
         self.bot = bot
         self.dbhandler = database.dbhandler()
         self.check_on_schedule.start()
-    #todo: finalize when done
-    swancord_general = 1154762810987921438  # Currently bawt-spam, change later
-    boyscord_general = 570735067580727309
 
     @commands.command(name="birthdaytest")
     async def birthdaytest(self, ctx):
@@ -81,13 +78,13 @@ class BirthdayCog(commands.Cog, name="BirthdayCog"):
                 db_guild_cur = self.dbhandler.execute(f"SELECT guild_id FROM birthdays WHERE user_id = {user_id}")
                 user = db_user_cur[0]['user']
                 guild = int(db_guild_cur[0]['guild_id'])
-                general_channel = self.bot.get_channel(self.swancord_general)
+                general_channel = self.bot.get_channel(swannybottokens.swancord_general)
                 guild_name = self.bot.get_guild(swannybottokens.swancord).name
 
                 # If bot is in more servers, below will need a small refactor
-                if guild == swannybottokens.jesuscord:
-                    general_channel = self.bot.get_channel(self.boyscord_general)
-                    guild_name = self.bot.get_guild(swannybottokens.jesuscord).name
+                if guild == swannybottokens.boyscord:
+                    general_channel = self.bot.get_channel(swannybottokens.boyscord_general)
+                    guild_name = self.bot.get_guild(swannybottokens.boyscord).name
 
                 await general_channel.send(
                     f"""
