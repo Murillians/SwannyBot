@@ -89,7 +89,6 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
         self.bot = bot
         self.dbhandler = database.dbhandler()
         self.check_on_schedule.start()
-    deals_thread = 1268631317755596860  # Insert Thread ID here to route deal notifs.
 
     @commands.command(name="checktest")
     async def checktest(self, ctx):
@@ -99,7 +98,7 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
     async def daily_sale_check(self):
         try:
             cheapshark_link = "https://www.cheapshark.com/redirect?dealID="
-            deals = self.bot.get_channel(self.deals_thread)
+            deals = self.bot.get_channel(swannybottokens.swancord_deals_thread)
             historical_low_message = ""
             sale_message = ""
 
