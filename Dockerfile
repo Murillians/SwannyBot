@@ -5,10 +5,7 @@ FROM python:latest
 RUN mkdir -p /swannybot
 WORKDIR /swannybot
 COPY . .
-RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update -y &&\
+RUN apt-get update -y &&\
     apt-get upgrade -y &&\
     pip install --upgrade pip &&\
     apt-get install -y bash &&\
