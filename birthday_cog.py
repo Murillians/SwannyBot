@@ -86,8 +86,9 @@ class BirthdayCog(commands.Cog, name="BirthdayCog"):
                     general_channel = self.bot.get_channel(swannybottokens.boyscord_general)
                     guild_name = self.bot.get_guild(swannybottokens.boyscord).name
 
-                await general_channel.send(
-                    f"""
+                if user_id != swannybottokens.swannybotid:
+                    await general_channel.send(
+                        f"""
 🎉🎊🎈🎂 Today is <@{user_id}>'s birthday! 🎂🎈🎊🎉
 🥳 Everyone, please join me in singing happy birthday to **{user}**!
 
@@ -106,7 +107,30 @@ class BirthdayCog(commands.Cog, name="BirthdayCog"):
 
     **Swanny Bot** ❤️
         💖❤️ **and all of your friends of the {guild_name} server!** ❤️💖
-                    """)
+                        """)
+                else:
+                    # Swanny Bot's birthday (4/9) :)
+                    await general_channel.send(
+                        f"""
+🎉🎊🎈🎂 Today is my birthday! 🎂🎈🎊🎉
+🥳 Everyone, please join me in singing happy birthday!
+
+*Happy birthday to you!* 🎶
+*Happy birthday to you!* 🎵
+*Happy birthday dear Swanny Bot!* 💝
+*Happy birthday to you!* 🎶
+
+😄 And for my special day, here is an inspirational quote I found just for you:
+## "{quote}"
+    ### -- {author}
+
+😊 **Have a great day, everyone!** 
+
+*Love,*
+
+    **Swanny Bot** ❤️
+                        """)
+
 
     # Check for birthdays at midnight EST
     @tasks.loop(time=datetime.time(hour=0, minute=0, second=10, tzinfo=tz.gettz('America/New_York')))
