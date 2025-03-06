@@ -98,6 +98,9 @@ class streamer_cog(commands.Cog):
     async def addNewChannel(self, ctx, *args):
         guild = ctx.guild.id
         newchannel = args[0]
+        if newchannel.startswith("https://www.twitch.tv/"):
+            grab_channel_name = newchannel.split("https://www.twitch.tv/")
+            newchannel = grab_channel_name[1]
         logging.debug("Guild ID: ", guild, " wants to follow ", newchannel)
         twitchChannelInfo = await self.getTwitchChannel(newchannel)
         if twitchChannelInfo == False:
@@ -160,6 +163,9 @@ class streamer_cog(commands.Cog):
     async def deleteTwitchChannel(self,ctx,*args):
         guild = ctx.guild.id
         newchannel = args[0]
+        if newchannel.startswith("https://www.twitch.tv/"):
+            grab_channel_name = newchannel.split("https://www.twitch.tv/")
+            newchannel = grab_channel_name[1]
         logging.debug("Guild ID: ", guild, " wants to remove ", newchannel)
         twitchChannelInfo = await self.getTwitchChannel(newchannel)
         if twitchChannelInfo == False:
