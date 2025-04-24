@@ -98,7 +98,7 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
     async def daily_sale_check(self):
         try:
             cheapshark_link = "https://www.cheapshark.com/redirect?dealID="
-            deals = self.bot.get_channel(swannybottokens.swancord_deals_thread)
+            deals = self.bot.get_channel(swannybottokens.swancord_deals_channel)
             historical_low_message = ""
             sale_message = ""
 
@@ -185,8 +185,6 @@ class GameDealCog(commands.Cog, name="GameDealCog"):
             response_message = historical_low_message + sale_message
             if len(response_message) > 0:
                 await deals.send(response_message, silent=True)
-            else:
-                await deals.send("There were no new sales today, check back tomorrow at `2:00 P.M. EST`!")
 
         except Exception as e:
             print(e)
