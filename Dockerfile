@@ -5,13 +5,20 @@ FROM python:latest
 RUN mkdir -p /swannybot
 WORKDIR /swannybot
 COPY . .
-RUN apt-get update -y &&\
-    apt-get upgrade -y &&\
-    pip install --upgrade pip &&\
-    apt-get install -y bash &&\
+# The installer requires curl (and certificates) to download the release archive
+RUN apt-get update &&\
+    apt-get install -y --no-install-recommends curl ca-certificates
+
+# Download the latest installer
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+
+# Run the installer then remove it
+RUN sh /uv-installer.sh && rm /uv-installer.sh
+
+# Ensure the installed binary is on the `PATH`
+ENV PATH="/root/.local/bin/:$PATH"
+RUN apt-get install -y bash &&\
     apt-get install -y ffmpeg &&\
-    apt-get install -y nano &&\
-    pip install -r requirements.txt --user &&\
-    pip install -U git+https://github.com/PythonistaGuild/Wavelink.git --force-reinstall
+    apt-get install -y nano
 ENV TZ=America/New_York
-CMD ["/swannybot/start.sh"]
+CMD ["uv" "run" "swanny_bot.py"]
