@@ -7,6 +7,7 @@ WORKDIR /swannybot
 COPY . .
 RUN apt-get update -y &&\
     apt-get upgrade -y &&\
+    curl -fsSL https://deno.land/install.sh | sh &&\
     pip install --upgrade pip &&\
     apt-get install -y bash &&\
     apt-get install -y ffmpeg &&\
