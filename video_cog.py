@@ -19,7 +19,8 @@ class video_cog(commands.Cog):
     ydl_opts = {
         'progress_hooks': [error_handler],
         'format':  'b[vcodec~=\'^(h264|avc)\'] / b[ext=mp4]',
-        'outtmpl': '%(id)s.%(ext)s'
+        'outtmpl': '%(id)s.%(ext)s',
+        'verbose': True
     }
     # overall optimal download for transcoding
     ydl_opts_transcode = {"format": "bv*+ba*",
