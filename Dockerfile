@@ -13,8 +13,7 @@ RUN apt-get update -y &&\
     apt-get install -y bash &&\
     apt-get install -y ffmpeg &&\
     apt-get install -y nano &&\
-    pip install -r requirements.txt --user &&\
-    pip install -U git+https://github.com/atefcodes/Wavelink.git --force-reinstall &&\
+    pip install -r requirements.txt --user &&    \
     chmod +x start.sh
 ENV TZ=America/New_York
 CMD ["/swannybot/start.sh"]
