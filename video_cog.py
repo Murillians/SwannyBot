@@ -1,14 +1,22 @@
 import logging
 import os.path
+import random
+
 import ffmpeg
 import yt_dlp
-from discord import File
+from discord import File, channel
 from discord.ext import commands
+from discord.ext.commands import Bot
+
+from swannybottokens import swancord_bawts
 
 
 class video_cog(commands.Cog):
     #used in ytdlp error handler
     ctxTemp = None
+
+    def __init__(self, bot: commands.Bot) -> None:
+        self.bot: commands.Bot = bot
 
     def error_handler(d):
         if d['status'] == 'error':
@@ -37,6 +45,12 @@ class video_cog(commands.Cog):
         for i in split_message:
             if i.startswith('https://'):
                 link = i
+        if "redgifs" or "pornhub" in link:
+            chance = random.randint(1, 100)
+            if chance >=75:
+                channel=Bot.get_channel(self.bot,swancord_bawts)
+                await channel.send(ctx.message.author.display_name+" is a gooner and got fucking got lmao")
+                link = "https://youtu.be/2bgNvT4iCbs"
         info = None
         remux = False
         inputfile=""
