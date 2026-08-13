@@ -11,7 +11,7 @@ RUN apt-get update -y &&\
     pip install --upgrade pip &&\
     apt-get install -y bash &&\
     apt-get install -y ffmpeg &&\
-    apt-get install -y nano &&\
+    apt-get install -y nano
 COPY . .
 RUN pip install -r requirements.txt --user &&    \
     chmod +x start.sh
