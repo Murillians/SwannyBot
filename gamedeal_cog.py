@@ -51,9 +51,9 @@ def game_lookup(app_id):
     # Build request to cheapshark API
     fixed_api_url = api_url + app_id
     payload = {}
-    headers = {}
+    headers = {'user-agent': swannybottokens.user_agent}
 
-    response = requests.request("GET", fixed_api_url, headers=headers, data=payload)
+    response = requests.request("GET", fixed_api_url, headers=headers, data=payload,)
     parsed = json.loads(response.text)
     # Pretty Print JSON Formatter
     # print(json.dumps(parsed, indent=3))
