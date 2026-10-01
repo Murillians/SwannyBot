@@ -11,6 +11,7 @@ import database
 import aiohttp
 import swannybottokens
 
+logger=logging.getLogger('discord')
 class channelInfo():
     def __init__(self):
         self.id = None
@@ -59,7 +60,7 @@ class streamer_cog(commands.Cog):
         self.TwitchEndpoint = 'https://api.twitch.tv/helix/streams?user_id='
         async with aiohttp.ClientSession(headers=self.headers) as session:
             for row in self.dbhandler.execute("select * from streamers"):
-                #print("Querying twitch for info on " + row["TwitchUserID"])
+                #logger.info("Querying twitch for info on %s", row["TwitchUserID"])
                 async with session.get(str(self.TwitchEndpoint + row["TwitchUserID"])) as response:
                     if response.status == 200:
                         streamData = await response.json()
@@ -75,7 +76,8 @@ class streamer_cog(commands.Cog):
                         lastStarted = lastStarted + timedelta(hours=6)
                         if (streamData["type"] == "live") and (fixedTime > lastStarted):
                             #print(streamData)
-                            print(streamData["user_name"] + " went live at "+str(time.time()))
+                            #print(streamData["user_name"] + " went live at "+str(time.time()))
+                            logger.info("%s went live at %s",streamData["user_name"],str(time.time()))
                             for row in self.dbhandler.execute("select * from guildStreamers left join guildChannels gC on guildStreamers.GuildID = gC.GuildID where TwitchUserID=?",(row["TwitchUserID"],)):
                                 destChannel = self.bot.get_channel(int(row["ChannelID"]))
                                 richEmbed = discord.Embed(
@@ -86,7 +88,6 @@ class streamer_cog(commands.Cog):
                                 await destChannel.send(embed=richEmbed)
                             self.dbhandler.execute("update streamers set LastStreamTime=datetime('now') WHERE TwitchUserID=?",
                                             (streamData["user_id"],))
-                            self.dbhandler.commit()
 
 
 
@@ -97,6 +98,9 @@ class streamer_cog(commands.Cog):
     async def addNewChannel(self, ctx, *args):
         guild = ctx.guild.id
         newchannel = args[0]
+        if newchannel.startswith("https://www.twitch.tv/"):
+            grab_channel_name = newchannel.split("https://www.twitch.tv/")
+            newchannel = grab_channel_name[1]
         logging.debug("Guild ID: ", guild, " wants to follow ", newchannel)
         twitchChannelInfo = await self.getTwitchChannel(newchannel)
         if twitchChannelInfo == False:
@@ -105,7 +109,6 @@ class streamer_cog(commands.Cog):
         self.dbhandler.execute("INSERT into Streamers VALUES(?,?)", (twitchChannelInfo.id, datetime.min))
         self.dbhandler.execute("INSERT into guildStreamers (GuildID,TwitchUserID) values (?,?) ",
                          (guild, twitchChannelInfo.id))
-        self.dbhandler.commit()
         richEmbed = discord.Embed(
             title='Successfully added ' + twitchChannelInfo.display_name + " to your list of subscribed twitch channels!",
             url=('https://www.twitch.tv/' + twitchChannelInfo.user_login)
@@ -123,7 +126,6 @@ class streamer_cog(commands.Cog):
         row = data.fetchone()
         if row == None or len(row) == 0:
             self.dbhandler.execute('''INSERT INTO guildChannels(GuildID,ChannelID) VALUES(?,?)''', (guild, currentChannel))
-            self.dbhandler.commit()
             await ctx.send("Successfully made this channel the default for stream notifications!")
             return
 
@@ -144,7 +146,6 @@ class streamer_cog(commands.Cog):
             if reply:
                 self.dbhandler.execute('''update guildChannels set ChannelID=? where GuildID=?''',
                                  (currentChannel, guild))
-                self.dbhandler.commit()
                 await ctx.send("Successfully made this channel the default for stream notifications!")
                 return
             elif not reply:
@@ -162,6 +163,9 @@ class streamer_cog(commands.Cog):
     async def deleteTwitchChannel(self,ctx,*args):
         guild = ctx.guild.id
         newchannel = args[0]
+        if newchannel.startswith("https://www.twitch.tv/"):
+            grab_channel_name = newchannel.split("https://www.twitch.tv/")
+            newchannel = grab_channel_name[1]
         logging.debug("Guild ID: ", guild, " wants to remove ", newchannel)
         twitchChannelInfo = await self.getTwitchChannel(newchannel)
         if twitchChannelInfo == False:
@@ -169,7 +173,6 @@ class streamer_cog(commands.Cog):
             return
         self.dbhandler.execute("delete from guildStreamers where GuildID=(?) and TwitchUserID=(?)",
                          (guild, twitchChannelInfo.id))
-        self.dbhandler.commit()
         await ctx.send('Successfully removed ' + twitchChannelInfo.display_name + " from your list of subscribed twitch channels!")
     @commands.command(name="list_twitch_channels",aliases=["twitch_list"], help="See a list of subscribed twitch channels for this server")
     async def listTwitchChannels(self,ctx):
@@ -200,3 +203,5 @@ class streamer_cog(commands.Cog):
                         returnVal = channelInfo()
                         returnVal.parseUser(userData)
                         return returnVal
+async def setup(bot):
+    await bot.add_cog(streamer_cog(bot=bot))
